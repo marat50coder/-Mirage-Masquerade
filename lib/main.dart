@@ -1,0 +1,46 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'core/palette.dart';
+import 'screens/boot_screen.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ),
+  );
+  runApp(const MirageMasqueradeApp());
+}
+
+class MirageMasqueradeApp extends StatelessWidget {
+  const MirageMasqueradeApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Mirage Masquerade',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: MM.night,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: MM.amethyst,
+          brightness: Brightness.dark,
+          surface: MM.deep,
+        ),
+        fontFamily: null,
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+      ),
+      builder: (context, child) => MediaQuery.withNoTextScaling(
+        child: child ?? const SizedBox.shrink(),
+      ),
+      home: const BootScreen(),
+    );
+  }
+}
