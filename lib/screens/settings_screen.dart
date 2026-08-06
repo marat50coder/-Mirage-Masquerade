@@ -6,6 +6,7 @@ import '../core/palette.dart';
 import '../core/progress.dart';
 import '../widgets/ornate.dart';
 import '../widgets/result_dialogs.dart';
+import 'web_view_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  Future<void> _openPage(String title, String url) {
+    Audio.instance
+      ..play(Sfx.menuOpen)
+      ..tapFeedback();
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MMWebViewScreen(title: title, url: url),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = Progress.instance;
@@ -90,6 +102,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: GoldButton(
+                  label: 'PRIVACY POLICY',
+                  color: MM.amethyst,
+                  height: 54,
+                  fontSize: 13,
+                  icon: Icons.privacy_tip_rounded,
+                  onTap: () => _openPage(
+                    'PRIVACY POLICY',
+                    'https://miragemasquerade.com/privacy-policy.html',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GoldButton(
+                  label: 'SUPPORT',
+                  color: MM.emerald,
+                  height: 54,
+                  fontSize: 13,
+                  icon: Icons.support_agent_rounded,
+                  onTap: () => _openPage(
+                    'SUPPORT',
+                    'https://miragemasquerade.com/support.html',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           GoldButton(
             label: 'RESET ALL PROGRESS',
             color: MM.crimson,
