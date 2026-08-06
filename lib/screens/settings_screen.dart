@@ -98,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text('MIRAGE MASQUERADE', style: MM.title(15)),
                 const SizedBox(height: 4),
                 Text(
-                  'Version 1.0.0',
+                  'Version 1.0.0 (2)',
                   style: MM.body(11, color: MM.parchment.withValues(alpha: 0.7)),
                 ),
                 const SizedBox(height: 8),
