@@ -16,7 +16,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  Future<void> _openPage(String title, String url, {bool fullScreen = false}) {
+  Future<void> _openPage(
+    String title,
+    String url, {
+    bool fullScreen = false,
+    bool stretchContent = false,
+  }) {
     Audio.instance
       ..play(Sfx.menuOpen)
       ..tapFeedback();
@@ -26,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: title,
           url: url,
           fullScreen: fullScreen,
+          stretchContent: stretchContent,
         ),
       ),
     );
@@ -133,6 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'SUPPORT',
                     'https://miragemasquerade.com/support.html',
                     fullScreen: true,
+                    stretchContent: true,
                   ),
                 ),
               ),

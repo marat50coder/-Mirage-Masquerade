@@ -19,15 +19,46 @@ class MMWebViewScreen extends StatefulWidget {
     required this.title,
     required this.url,
     this.fullScreen = false,
+    this.stretchContent = false,
   });
 
   final String title;
   final String url;
   final bool fullScreen;
 
+  /// When `true`, injects CSS on load that makes the page fill the entire
+  /// viewport (used for the Support form which naturally sits in a small
+  /// desktop-style card in the middle of a big blank background).
+  final bool stretchContent;
+
   @override
   State<MMWebViewScreen> createState() => _MMWebViewScreenState();
 }
+
+/// Inline CSS + viewport meta injected once the page is loaded. Grows the
+/// single centred card so it uses the whole screen and stays readable.
+const _stretchScript = r'''
+(function() {
+  var m = document.querySelector('meta[name="viewport"]');
+  if (!m) { m = document.createElement('meta'); m.name = 'viewport'; document.head.appendChild(m); }
+  m.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+
+  var s = document.createElement('style');
+  s.textContent = ''
+    + 'html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; background: #ffffff !important; }'
+    + 'body { display: flex !important; align-items: stretch !important; justify-content: center !important; padding: 16px !important; box-sizing: border-box !important; }'
+    + 'body > * { width: 100% !important; max-width: 640px !important; box-sizing: border-box !important; }'
+    + 'form, .card, .container, .support, .box, .content, main, section {'
+    + '  width: 100% !important; max-width: 640px !important; box-sizing: border-box !important;'
+    + '  padding: 24px !important; margin: 0 auto !important;'
+    + '  border-radius: 18px !important;'
+    + '}'
+    + 'input, textarea { font-size: 17px !important; padding: 12px !important; box-sizing: border-box !important; width: 100% !important; }'
+    + 'textarea { min-height: 220px !important; }'
+    + 'button, input[type="submit"] { font-size: 17px !important; padding: 14px !important; width: 100% !important; }';
+  document.head.appendChild(s);
+})();
+''';
 
 class _MMWebViewScreenState extends State<MMWebViewScreen> {
   late final WebViewController _controller;
@@ -52,7 +83,12 @@ class _MMWebViewScreenState extends State<MMWebViewScreen> {
               });
             }
           },
-          onPageFinished: (_) {
+          onPageFinished: (_) async {
+            if (widget.stretchContent) {
+              try {
+                await _controller.runJavaScript(_stretchScript);
+              } catch (_) {}
+            }
             if (mounted) setState(() => _loading = false);
           },
           onWebResourceError: (error) {
