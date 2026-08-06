@@ -16,13 +16,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  Future<void> _openPage(String title, String url) {
+  Future<void> _openPage(String title, String url, {bool fullScreen = false}) {
     Audio.instance
       ..play(Sfx.menuOpen)
       ..tapFeedback();
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => MMWebViewScreen(title: title, url: url),
+        builder: (_) => MMWebViewScreen(
+          title: title,
+          url: url,
+          fullScreen: fullScreen,
+        ),
       ),
     );
   }
@@ -128,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _openPage(
                     'SUPPORT',
                     'https://miragemasquerade.com/support.html',
+                    fullScreen: true,
                   ),
                 ),
               ),
