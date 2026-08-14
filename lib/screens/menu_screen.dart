@@ -99,8 +99,29 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                           asset: A.star,
                           value: '${p.totalStars}/${Levels.count * 3}',
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         CoinPill(amount: p.coins),
+                        const Spacer(),
+                        RoundGlyphButton(
+                          icon: Icons.help_outline_rounded,
+                          size: 36,
+                          sound: Sfx.popup,
+                          onTap: () => _open(const HowToPlayScreen()),
+                        ),
+                        const SizedBox(width: 8),
+                        RoundGlyphButton(
+                          icon: Icons.insights_rounded,
+                          size: 36,
+                          sound: Sfx.tab,
+                          onTap: () => _open(const StatsScreen()),
+                        ),
+                        const SizedBox(width: 8),
+                        RoundGlyphButton(
+                          icon: Icons.settings_rounded,
+                          size: 36,
+                          sound: Sfx.menuOpen,
+                          onTap: () => _open(const SettingsScreen()),
+                        ),
                       ],
                     ),
                   ),
@@ -119,7 +140,7 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                             ),
                             child: Opacity(
                               opacity: 0.85,
-                              child: Image.asset(A.jokerMenu, height: compact ? 150 : 210),
+                              child: Image.asset(A.jokerMenu, height: compact ? 132 : 190),
                             ),
                           ),
                         ),
@@ -134,14 +155,15 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                             ),
                             child: Opacity(
                               opacity: 0.8,
-                              child: Image.asset(A.jokerAlt, height: compact ? 132 : 185),
+                              child: Image.asset(A.jokerAlt, height: compact ? 118 : 168),
                             ),
                           ),
                         ),
-                        Column(
+                        Positioned.fill(
+                          child: Column(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
-                            SizedBox(height: compact ? 2 : 10),
+                            SizedBox(height: compact ? 4 : 12),
                             AnimatedBuilder(
                               animation: _float,
                               builder: (_, child) => Transform.translate(
@@ -150,11 +172,11 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                               ),
                               child: Image.asset(
                                 A.logo,
-                                height: compact ? 150 : 200,
+                                height: compact ? 140 : 190,
                                 fit: BoxFit.contain,
                               ),
                             ),
-                            SizedBox(height: compact ? 4 : 10),
+                            SizedBox(height: compact ? 2 : 6),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24),
                               child: FittedBox(
@@ -167,70 +189,69 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                                 ),
                               ),
                             ),
-                            SizedBox(height: compact ? 12 : 22),
+                            const Spacer(),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 30),
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
                               child: Column(
                                 children: [
                                   GoldButton(
-                                    label: p.highestUnlocked == 0 ? 'BEGIN THE SHOW' : 'CONTINUE',
-                                    subtitle: 'Act ${nextLevel.number} · ${nextLevel.title}',
-                                    height: 72,
+                                    label: p.highestUnlocked == 0
+                                        ? 'BEGIN THE SHOW'
+                                        : 'CONTINUE',
+                                    subtitle:
+                                        'Act ${nextLevel.number} · ${nextLevel.title}',
+                                    height: 74,
                                     fontSize: 22,
                                     icon: Icons.play_arrow_rounded,
                                     onTap: _play,
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                                   Row(
                                     children: [
                                       Expanded(
-                                        child: GoldButton(
+                                        child: MenuTile(
                                           label: 'ACTS',
-                                          color: MM.amethyst,
-                                          height: 54,
-                                          fontSize: 15,
                                           icon: Icons.grid_view_rounded,
-                                          onTap: () => _open(const LevelSelectScreen()),
+                                          color: MM.amethyst,
+                                          sound: Sfx.tab,
+                                          onTap: () =>
+                                              _open(const LevelSelectScreen()),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Badged(
                                           count: claimable,
-                                          child: GoldButton(
+                                          child: MenuTile(
                                             label: 'DAILY',
-                                            color: MM.emerald,
-                                            height: 54,
-                                            fontSize: 15,
                                             icon: Icons.task_alt_rounded,
-                                            onTap: () => _open(const DailyScreen()),
+                                            color: MM.emerald,
+                                            sound: Sfx.tab,
+                                            onTap: () =>
+                                                _open(const DailyScreen()),
                                           ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: GoldButton(
-                                          label: 'SHOP',
-                                          color: MM.crimson,
-                                          height: 54,
-                                          fontSize: 15,
-                                          icon: Icons.storefront_rounded,
-                                          onTap: () => _open(const ShopScreen()),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
-                                        child: GoldButton(
+                                        child: MenuTile(
+                                          label: 'SHOP',
+                                          icon: Icons.storefront_rounded,
+                                          color: MM.crimson,
+                                          sound: Sfx.tab,
+                                          onTap: () =>
+                                              _open(const ShopScreen()),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: MenuTile(
                                           label: 'GALLERY',
-                                          color: const Color(0xFF3E8FD6),
-                                          height: 54,
-                                          fontSize: 15,
                                           icon: Icons.theater_comedy_rounded,
-                                          onTap: () => _open(const GalleryScreen()),
+                                          color: const Color(0xFF3E8FD6),
+                                          sound: Sfx.tab,
+                                          onTap: () =>
+                                              _open(const GalleryScreen()),
                                         ),
                                       ),
                                     ],
@@ -238,32 +259,9 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 18),
                           ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        RoundGlyphButton(
-                          icon: Icons.help_outline_rounded,
-                          sound: Sfx.popup,
-                          onTap: () => _open(const HowToPlayScreen()),
-                        ),
-                        const SizedBox(width: 18),
-                        RoundGlyphButton(
-                          icon: Icons.insights_rounded,
-                          sound: Sfx.tab,
-                          onTap: () => _open(const StatsScreen()),
-                        ),
-                        const SizedBox(width: 18),
-                        RoundGlyphButton(
-                          icon: Icons.settings_rounded,
-                          sound: Sfx.menuOpen,
-                          onTap: () => _open(const SettingsScreen()),
+                          ),
                         ),
                       ],
                     ),
