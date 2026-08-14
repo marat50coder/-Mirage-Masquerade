@@ -27,7 +27,11 @@ class GameHud extends StatelessWidget {
         children: [
           Row(
             children: [
-              RoundGlyphButton(icon: Icons.pause_rounded, size: 40, onTap: onPause),
+              RoundGlyphButton(
+                icon: Icons.pause_circle_filled_rounded,
+                size: 42,
+                onTap: onPause,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -199,7 +203,11 @@ class _TimerChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.schedule_rounded, size: 14, color: urgent ? MM.danger : MM.gold),
+          Icon(
+            urgent ? Icons.hourglass_bottom_rounded : Icons.hourglass_top_rounded,
+            size: 15,
+            color: urgent ? MM.danger : MM.gold,
+          ),
           const SizedBox(width: 5),
           Text('$m:$s', style: MM.title(15, color: urgent ? MM.danger : MM.gold)),
         ],

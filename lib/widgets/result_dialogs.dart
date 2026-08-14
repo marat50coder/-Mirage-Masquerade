@@ -275,36 +275,27 @@ class _ScoreRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: MM.body(11, color: MM.parchment.withValues(alpha: 0.75))
-                  .copyWith(letterSpacing: 1.1),
-            ),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: MM
+                .body(10, color: MM.parchment.withValues(alpha: 0.7))
+                .copyWith(letterSpacing: 1.4),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: MM.gold.withValues(alpha: 0.22), width: 1),
-                  ),
-                ),
-                child: const SizedBox(height: 10, width: double.infinity),
-              ),
-            ),
-          ),
+          const SizedBox(height: 2),
           Text(
             value,
+            textAlign: TextAlign.center,
             style: highlight
-                ? MM.title(15, color: MM.goldBright)
-                : MM.body(13, color: MM.parchment),
+                ? MM.title(16, color: MM.goldBright)
+                : MM.body(14, color: MM.parchment),
           ),
         ],
       ),

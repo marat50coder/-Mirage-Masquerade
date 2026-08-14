@@ -87,6 +87,7 @@ class _GoldButtonState extends State<GoldButton> {
   Widget build(BuildContext context) {
     final enabled = widget.enabled && widget.onTap != null;
     final accent = widget.color ?? MM.gold;
+    final radius = BorderRadius.circular(widget.height * 0.42);
     return GestureDetector(
       onTapDown: enabled ? (_) => setState(() => _down = true) : null,
       onTapCancel: enabled ? () => setState(() => _down = false) : null,
@@ -107,75 +108,309 @@ class _GoldButtonState extends State<GoldButton> {
           child: Container(
             height: widget.height,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: radius,
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Color.lerp(accent, Colors.white, 0.42)!,
+                  Color.lerp(accent, Colors.white, 0.48)!,
                   accent,
-                  Color.lerp(accent, Colors.black, 0.46)!,
+                  Color.lerp(accent, Colors.black, 0.52)!,
                 ],
-                stops: const [0, 0.45, 1],
+                stops: const [0, 0.5, 1],
               ),
-              border: Border.all(color: Color.lerp(accent, Colors.white, 0.6)!, width: 1.6),
+              border: Border.all(
+                color: Color.lerp(accent, Colors.white, 0.72)!,
+                width: 1.8,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: accent.withValues(alpha: _down ? 0.18 : 0.42),
-                  blurRadius: _down ? 8 : 18,
-                  offset: Offset(0, _down ? 2 : 6),
+                  color: accent.withValues(alpha: _down ? 0.20 : 0.48),
+                  blurRadius: _down ? 6 : 20,
+                  offset: Offset(0, _down ? 2 : 8),
+                  spreadRadius: _down ? -2 : 0,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: _down ? 0.28 : 0.40),
+                  blurRadius: _down ? 4 : 10,
+                  offset: Offset(0, _down ? 1 : 3),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (widget.assetIcon != null) ...[
-                  Image.asset(widget.assetIcon!, height: widget.height * 0.52),
-                  const SizedBox(width: 10),
-                ] else if (widget.icon != null) ...[
-                  Icon(widget.icon, color: const Color(0xFF3A1E06), size: widget.fontSize + 6),
-                  const SizedBox(width: 8),
-                ],
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: widget.fontSize,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.1,
-                            color: const Color(0xFF34190B),
-                            shadows: [
-                              Shadow(
-                                color: Colors.white.withValues(alpha: 0.4),
-                                offset: const Offset(0, 1),
-                              ),
+            child: ClipRRect(
+              borderRadius: radius,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: widget.height * 0.42,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.32),
+                              Colors.white.withValues(alpha: 0),
                             ],
                           ),
                         ),
-                        if (widget.subtitle != null)
-                          Text(
-                            widget.subtitle!,
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: widget.fontSize * 0.62,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF5A2E10),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  Padding(
+                    padding: widget.icon != null || widget.assetIcon != null
+                        ? EdgeInsets.only(
+                            left: widget.height * 0.92,
+                            right: 14,
+                          )
+                        : const EdgeInsets.symmetric(horizontal: 14),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: widget.fontSize,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.4,
+                              color: const Color(0xFF2A1204),
+                              shadows: [
+                                Shadow(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (widget.subtitle != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                widget.subtitle!,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: widget.fontSize * 0.60,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.6,
+                                  color: const Color(0xFF4A230C),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (widget.assetIcon != null)
+                    Positioned(
+                      left: widget.height * 0.18,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _GlyphBadge(
+                          size: widget.height * 0.62,
+                          accent: accent,
+                          child: Image.asset(
+                            widget.assetIcon!,
+                            height: widget.height * 0.44,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (widget.icon != null)
+                    Positioned(
+                      left: widget.height * 0.18,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _GlyphBadge(
+                          size: widget.height * 0.62,
+                          accent: accent,
+                          child: Icon(
+                            widget.icon,
+                            color: const Color(0xFF2A1204),
+                            size: widget.fontSize + 6,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlyphBadge extends StatelessWidget {
+  const _GlyphBadge({required this.size, required this.accent, required this.child});
+
+  final double size;
+  final Color accent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.lerp(accent, Colors.white, 0.62)!,
+            Color.lerp(accent, Colors.black, 0.18)!,
+          ],
+        ),
+        border: Border.all(
+          color: Color.lerp(accent, Colors.black, 0.35)!,
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.24),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Vertical menu tile: big glyph on top, label below. Used on the menu screen
+/// for the secondary destinations (Acts / Daily / Shop / Gallery).
+class MenuTile extends StatefulWidget {
+  const MenuTile({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.color = MM.gold,
+    this.sound = Sfx.menuOpen,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+  final String sound;
+
+  @override
+  State<MenuTile> createState() => _MenuTileState();
+}
+
+class _MenuTileState extends State<MenuTile> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.color;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapCancel: () => setState(() => _down = false),
+      onTapUp: (_) {
+        setState(() => _down = false);
+        Audio.instance
+          ..play(widget.sound)
+          ..tapFeedback();
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _down ? 0.965 : 1,
+        duration: const Duration(milliseconds: 90),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.lerp(MM.velvet, Colors.white, 0.08)!.withValues(alpha: 0.94),
+                Color.lerp(MM.velvet, Colors.black, 0.48)!.withValues(alpha: 0.94),
               ],
             ),
+            border: Border.all(color: accent.withValues(alpha: 0.72), width: 1.6),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: _down ? 0.18 : 0.34),
+                blurRadius: _down ? 8 : 16,
+                offset: Offset(0, _down ? 2 : 6),
+                spreadRadius: -2,
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(accent, Colors.white, 0.50)!,
+                      accent,
+                      Color.lerp(accent, Colors.black, 0.35)!,
+                    ],
+                  ),
+                  border: Border.all(
+                    color: Color.lerp(accent, Colors.white, 0.55)!,
+                    width: 1.4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.5),
+                      blurRadius: 10,
+                      spreadRadius: -2,
+                    ),
+                  ],
+                ),
+                child: Icon(widget.icon, color: const Color(0xFF2A1204), size: 24),
+              ),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.6,
+                    color: MM.parchment,
+                    shadows: [
+                      Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
