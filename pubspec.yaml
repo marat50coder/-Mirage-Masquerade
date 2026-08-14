@@ -14,18 +14,6 @@ dependencies:
   audioplayers: ^6.1.0
   webview_flutter: ^4.14.1
   webview_flutter_wkwebview: ^3.26.0
-  # Veil (dual-mode) layer.
-  appsflyer_sdk: ^6.18.0
-  app_tracking_transparency: ^2.0.7
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
-  firebase_app_check: ^0.4.5+2
-  # 7.1+ requires Xcode 26.1 for NWPath.isUltraConstrained.
-  connectivity_plus: '>=7.0.0 <7.1.0'
-  http: ^1.6.0
-  # 12.4+ calls an Xcode 26.1-only NSProcessInfo selector.
-  device_info_plus: 12.3.0
-  flutter_secure_storage: ^10.3.1
   url_launcher: ^6.3.2
 
 dev_dependencies:
@@ -43,4 +31,3 @@ flutter:
     - assets/img/bg/
     - assets/img/screen/
     - assets/sfx/
-    - assets/veil/
