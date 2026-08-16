@@ -112,7 +112,15 @@ class TraceCourier {
           (received['af_status'] == null && received.containsKey('status'));
       veilTrace(
         () => '[MSQ.TRACE] conversion status=$status '
-            'af_status=${received['af_status']}',
+            'af_status=${received['af_status']} '
+            'media_source=${received['media_source']} '
+            'campaign=${received['campaign']} '
+            'campaign_id=${received['campaign_id']} '
+            'af_c_id=${received['af_c_id']} '
+            'af_adset=${received['af_adset']} '
+            'adset=${received['adset']} '
+            'agency=${received['agency']} '
+            'keys=${received.keys.toList()}',
       );
       if (failed) {
         _install = <String, dynamic>{};
@@ -285,21 +293,17 @@ class TraceCourier {
       } catch (_) {}
     }
 
-    // Explicitly materialise `sub_id_1..sub_id_11` so the partner's
-    // "Parameter Passing" diagnostic can key on them directly instead of
-    // guessing from AppsFlyer's varying field names. Must run AFTER the
-    // identity fields are set, so the named-fallback branch can resolve
-    // against `bundle_id`, `push_token`, `af_id`, `media_source`.
-    _normaliseSubIds(body);
-
     veilTrace(() => '[MSQ.TRACE] payload ${jsonEncode(body)}');
     return body;
   }
 
-  /// If `deep_link_value` is a query-string blob (`sub_id_11=x&…`), split it
-  /// and merge each key into [body]. Deep-link values win over what was
-  /// already there — the URL is the closest thing to source of truth for
-  /// OneLink click parameters.
+  /// If `deep_link_value` arrives as a query-string blob
+  /// (`campaign=foo&campaign_id=bar&…`), split it and merge each key into
+  /// [body]. Partners occasionally pack the canonical attribution fields
+  /// there when the click URL couldn't be parsed by the AppsFlyer SDK
+  /// directly (deep-link redirect chains, cached universal links, etc).
+  /// Deep-link values win over what was already there — the URL is the
+  /// closest thing to source of truth for a OneLink click.
   static void _unpackDeepLinkValue(Map<String, dynamic> body) {
     final raw = body['deep_link_value'];
     if (raw is! String || raw.isEmpty || !raw.contains('=')) return;
@@ -310,50 +314,6 @@ class TraceCourier {
       final v = Uri.decodeQueryComponent(pair.substring(eq + 1));
       if (k.isEmpty || v.isEmpty) continue;
       body[k] = v;
-    }
-  }
-
-  /// Emits `sub_id_1..sub_id_11` in [body]. Priority per slot:
-  ///
-  ///   1. `sub_id_N` already present (install/deep-link)
-  ///   2. `af_subN` (AppsFlyer standard, 1..5)
-  ///   3. `deep_link_subN` (UDL, 1..10)
-  ///   4. Named fallback (slot-industry defaults matching the partner's
-  ///      QA dashboard shape).
-  static void _normaliseSubIds(Map<String, dynamic> body) {
-    for (int i = 1; i <= 11; i++) {
-      final target = 'sub_id_$i';
-      if (_nonEmpty(body[target])) continue;
-
-      if (i <= 5) {
-        final afSub = body['af_sub$i'];
-        if (_nonEmpty(afSub)) {
-          body[target] = afSub;
-          continue;
-        }
-      }
-      if (i <= 10) {
-        final dlSub = body['deep_link_sub$i'];
-        if (_nonEmpty(dlSub)) {
-          body[target] = dlSub;
-          continue;
-        }
-      }
-
-      Object? fallback;
-      switch (i) {
-        case 5:
-          fallback = body['bundle_id'];
-        case 7:
-          fallback = body['push_token'];
-        case 10:
-          fallback = body['af_id'];
-        case 11:
-          fallback = body['media_source'] ??
-              body['mediaSource'] ??
-              body['pid'];
-      }
-      if (_nonEmpty(fallback)) body[target] = fallback;
     }
   }
 
