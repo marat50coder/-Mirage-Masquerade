@@ -22,3 +22,26 @@ class CurtainCue {
     }
   }
 }
+
+/// Reads the OneLink URL that the SceneDelegate stashed at cold-start
+/// (`willConnectTo`) or during warm continue-user-activity. Read-only —
+/// TraceCourier peeks at every compose() call to overlay the click URL
+/// query parameters (`pid`, `c`, `agency`, `siteid`, ...) on top of the
+/// AppsFlyer install-conversion payload. On re-attribution installs
+/// AppsFlyer collapses those into the OneLink brand slug; the URL is the
+/// only source of truth.
+class OneLinkAttache {
+  static const String _dartKey = 'msq_onelink_url';
+
+  static Future<Uri?> peek() async {
+    if (!Platform.isIOS) return null;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final value = preferences.getString(_dartKey)?.trim();
+      if (value == null || value.isEmpty) return null;
+      return Uri.tryParse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+}

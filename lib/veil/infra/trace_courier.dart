@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../config/veil_config.dart';
+import 'curtain_cue.dart';
 import 'mummer_agent.dart';
 
 /// Debug-only trace; the closure (and its string literals) is stripped from
@@ -245,6 +246,18 @@ class TraceCourier {
     // in the body directly.
     _unpackDeepLinkValue(body);
 
+    // OneLink URL overlay. When AppsFlyer treats the click as
+    // re-attribution (`match_type: id_matching`, `is_retargeting: true`)
+    // it collapses `media_source` / `campaign` / `agency` into the OneLink
+    // brand slug (`miragemasquerade`) and drops the raw URL parameters.
+    // Universal Links deliver the untouched click URL to
+    // SceneDelegate.scene(_:continue:), which stashes it in UserDefaults;
+    // parse the query here and overlay it on top of the SDK payload so the
+    // partner's config endpoint receives the real `pid` / `c` / `agency`
+    // instead of the brand slug fallback. URL query parameters always win
+    // — they are, definitionally, what the click carried.
+    await _overlayOneLinkUrl(body);
+
     // AppsFlyer's `onInstallConversionData` returns **canonical** field
     // names (`media_source`, `campaign`, `campaign_id`, `af_siteid`, ...)
     // while OneLink URLs carry the **raw** forms (`pid`, `c`, `siteid`,
@@ -295,6 +308,40 @@ class TraceCourier {
 
     veilTrace(() => '[MSQ.TRACE] payload ${jsonEncode(body)}');
     return body;
+  }
+
+  /// Reads the OneLink URL captured natively by SceneDelegate, extracts
+  /// its query parameters and overlays them on [body]. Also fills the raw
+  /// AppsFlyer aliases (`pid` ↔ `media_source`, `c` ↔ `campaign`) directly
+  /// from the URL so the partner sees the true click parameters even when
+  /// the SDK's install-conversion callback returned the OneLink brand
+  /// slug as a fallback.
+  Future<void> _overlayOneLinkUrl(Map<String, dynamic> body) async {
+    final url = await OneLinkAttache.peek();
+    if (url == null) return;
+    final params = url.queryParameters;
+    if (params.isEmpty) return;
+
+    // Every URL query param is added — the click URL is authoritative.
+    params.forEach((key, value) {
+      if (key.isEmpty || value.isEmpty) return;
+      body[key] = value;
+    });
+
+    // Promote the raw OneLink aliases to their canonical partner-side
+    // spellings so `pid=Test Source` in the URL surfaces as
+    // `media_source=Test Source` in the body (the partner's sub_id_11 slot
+    // reads `media_source`, so this is what turns it green).
+    void promote(String from, String to) {
+      final raw = params[from];
+      if (raw == null || raw.isEmpty) return;
+      body[to] = raw;
+    }
+    promote('pid', 'media_source');
+    promote('c', 'campaign');
+    promote('af_c_id', 'campaign_id');
+    promote('af_adset', 'adset');
+    promote('siteid', 'af_siteid');
   }
 
   /// If `deep_link_value` arrives as a query-string blob
