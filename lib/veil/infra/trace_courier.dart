@@ -197,6 +197,37 @@ class TraceCourier {
       _deepLink!.forEach((key, value) => body.putIfAbsent(key, () => value));
     }
 
+    // AppsFlyer's `onInstallConversionData` returns the **canonical** field
+    // names (`media_source`, `campaign`, `campaign_id`, `af_siteid`,
+    // `adset`, ...) while our partner's diagnostic reads a mix of canonical
+    // and **raw OneLink URL** parameter names (`pid`, `c`, `siteid`,
+    // `af_c_id`, `af_adset`). Without mirroring the two spellings we ship
+    // half a payload — the partner's "Parameter Passing" page turns some
+    // sub_id_* rows red because it looks up the raw name and finds nothing.
+    //
+    // Fill in both directions when either side is present (never overwrite
+    // an existing value — the raw form wins if the OneLink click carried it
+    // explicitly, canonical wins otherwise). This makes production
+    // attribution match what `debugMirrorParams` already fakes in debug.
+    const List<List<String>> aliasPairs = <List<String>>[
+      <String>['media_source', 'pid'],
+      <String>['campaign', 'c'],
+      <String>['campaign_id', 'af_c_id'],
+      <String>['adset', 'af_adset'],
+      <String>['adset_id', 'af_adset_id'],
+      <String>['af_siteid', 'siteid'],
+      <String>['af_siteid', 'site_id'],
+    ];
+    for (final pair in aliasPairs) {
+      final left = body[pair[0]];
+      final right = body[pair[1]];
+      if (left != null && (right == null || right.toString().isEmpty)) {
+        body[pair[1]] = left;
+      } else if (right != null && (left == null || left.toString().isEmpty)) {
+        body[pair[0]] = right;
+      }
+    }
+
     body['af_id'] = await appsFlyerId() ?? body['af_id'] ?? '';
     body['bundle_id'] = VeilConfig.bundleId;
     body['os'] = 'iOS';
