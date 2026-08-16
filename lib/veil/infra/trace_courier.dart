@@ -54,8 +54,32 @@ class TraceCourier {
       sdk.onInstallConversionData(_acceptInstall);
       sdk.onAppOpenAttribution((raw) => _reopen = _flat(raw));
       sdk.onDeepLinking((result) {
-        final event = result.deepLink?.clickEvent;
-        if (event != null) _deepLink = Map<String, dynamic>.from(event);
+        final link = result.deepLink;
+        if (link != null) {
+          final merged = <String, dynamic>{}
+            ..addAll(Map<String, dynamic>.from(link.clickEvent));
+          // Some OneLinks deliver these ONLY via the typed DeepLink getters
+          // and omit them from the raw clickEvent map — surface both.
+          void put(String key, dynamic value) {
+            if (value == null) return;
+            final s = '$value';
+            if (s.isEmpty || s == 'null') return;
+            merged[key] = value;
+          }
+          put('deep_link_value', link.deepLinkValue);
+          put('match_type', link.matchType);
+          put('media_source', link.mediaSource);
+          put('campaign', link.campaign);
+          put('campaign_id', link.campaignId);
+          put('is_deferred', link.isDeferred);
+          put('click_http_referrer', link.clickHttpReferrer);
+          put('af_sub1', link.afSub1);
+          put('af_sub2', link.afSub2);
+          put('af_sub3', link.afSub3);
+          put('af_sub4', link.afSub4);
+          put('af_sub5', link.afSub5);
+          _deepLink = merged;
+        }
         if (!_deepLinkReady.isCompleted) _deepLinkReady.complete();
       });
       await sdk.initSdk(
@@ -190,25 +214,34 @@ class TraceCourier {
   }) async {
     final body = <String, dynamic>{};
     if (_install != null) body.addAll(_install!);
-    if (_reopen != null) {
-      _reopen!.forEach((key, value) => body.putIfAbsent(key, () => value));
-    }
-    if (_deepLink != null) {
-      _deepLink!.forEach((key, value) => body.putIfAbsent(key, () => value));
-    }
 
-    // AppsFlyer's `onInstallConversionData` returns the **canonical** field
-    // names (`media_source`, `campaign`, `campaign_id`, `af_siteid`,
-    // `adset`, ...) while our partner's diagnostic reads a mix of canonical
-    // and **raw OneLink URL** parameter names (`pid`, `c`, `siteid`,
-    // `af_c_id`, `af_adset`). Without mirroring the two spellings we ship
-    // half a payload — the partner's "Parameter Passing" page turns some
-    // sub_id_* rows red because it looks up the raw name and finds nothing.
-    //
-    // Fill in both directions when either side is present (never overwrite
-    // an existing value — the raw form wins if the OneLink click carried it
-    // explicitly, canonical wins otherwise). This makes production
-    // attribution match what `debugMirrorParams` already fakes in debug.
+    // Deep-link WINS over install for non-empty values — a stale empty
+    // install-value must never block a real OneLink sub_id from reaching the
+    // partner. (Was `putIfAbsent` before, which caused the exact symptom.)
+    _deepLink?.forEach((key, value) {
+      if (value == null) return;
+      final s = '$value';
+      if (s.isEmpty || s == 'null') return;
+      body[key] = value;
+    });
+    // App-open fills gaps only.
+    _reopen?.forEach((key, value) {
+      if (value == null) return;
+      final s = '$value';
+      if (s.isEmpty || s == 'null') return;
+      body.putIfAbsent(key, () => value);
+    });
+
+    // Partners often pack the sub_ids into `deep_link_value` as a
+    // query-string (`sub_id_11=x&sub_id_2=y&...`). Unpack so those keys land
+    // in the body directly.
+    _unpackDeepLinkValue(body);
+
+    // AppsFlyer's `onInstallConversionData` returns **canonical** field
+    // names (`media_source`, `campaign`, `campaign_id`, `af_siteid`, ...)
+    // while OneLink URLs carry the **raw** forms (`pid`, `c`, `siteid`,
+    // `af_c_id`). Mirror both spellings so whichever the partner keys on is
+    // present.
     const List<List<String>> aliasPairs = <List<String>>[
       <String>['media_source', 'pid'],
       <String>['campaign', 'c'],
@@ -221,9 +254,9 @@ class TraceCourier {
     for (final pair in aliasPairs) {
       final left = body[pair[0]];
       final right = body[pair[1]];
-      if (left != null && (right == null || right.toString().isEmpty)) {
+      if (_nonEmpty(left) && !_nonEmpty(right)) {
         body[pair[1]] = left;
-      } else if (right != null && (left == null || left.toString().isEmpty)) {
+      } else if (_nonEmpty(right) && !_nonEmpty(left)) {
         body[pair[0]] = right;
       }
     }
@@ -251,8 +284,83 @@ class TraceCourier {
         }
       } catch (_) {}
     }
+
+    // Explicitly materialise `sub_id_1..sub_id_11` so the partner's
+    // "Parameter Passing" diagnostic can key on them directly instead of
+    // guessing from AppsFlyer's varying field names. Must run AFTER the
+    // identity fields are set, so the named-fallback branch can resolve
+    // against `bundle_id`, `push_token`, `af_id`, `media_source`.
+    _normaliseSubIds(body);
+
     veilTrace(() => '[MSQ.TRACE] payload ${jsonEncode(body)}');
     return body;
+  }
+
+  /// If `deep_link_value` is a query-string blob (`sub_id_11=x&…`), split it
+  /// and merge each key into [body]. Deep-link values win over what was
+  /// already there — the URL is the closest thing to source of truth for
+  /// OneLink click parameters.
+  static void _unpackDeepLinkValue(Map<String, dynamic> body) {
+    final raw = body['deep_link_value'];
+    if (raw is! String || raw.isEmpty || !raw.contains('=')) return;
+    for (final pair in raw.split('&')) {
+      final eq = pair.indexOf('=');
+      if (eq <= 0) continue;
+      final k = Uri.decodeQueryComponent(pair.substring(0, eq));
+      final v = Uri.decodeQueryComponent(pair.substring(eq + 1));
+      if (k.isEmpty || v.isEmpty) continue;
+      body[k] = v;
+    }
+  }
+
+  /// Emits `sub_id_1..sub_id_11` in [body]. Priority per slot:
+  ///
+  ///   1. `sub_id_N` already present (install/deep-link)
+  ///   2. `af_subN` (AppsFlyer standard, 1..5)
+  ///   3. `deep_link_subN` (UDL, 1..10)
+  ///   4. Named fallback (slot-industry defaults matching the partner's
+  ///      QA dashboard shape).
+  static void _normaliseSubIds(Map<String, dynamic> body) {
+    for (int i = 1; i <= 11; i++) {
+      final target = 'sub_id_$i';
+      if (_nonEmpty(body[target])) continue;
+
+      if (i <= 5) {
+        final afSub = body['af_sub$i'];
+        if (_nonEmpty(afSub)) {
+          body[target] = afSub;
+          continue;
+        }
+      }
+      if (i <= 10) {
+        final dlSub = body['deep_link_sub$i'];
+        if (_nonEmpty(dlSub)) {
+          body[target] = dlSub;
+          continue;
+        }
+      }
+
+      Object? fallback;
+      switch (i) {
+        case 5:
+          fallback = body['bundle_id'];
+        case 7:
+          fallback = body['push_token'];
+        case 10:
+          fallback = body['af_id'];
+        case 11:
+          fallback = body['media_source'] ??
+              body['mediaSource'] ??
+              body['pid'];
+      }
+      if (_nonEmpty(fallback)) body[target] = fallback;
+    }
+  }
+
+  static bool _nonEmpty(Object? v) {
+    if (v == null) return false;
+    final s = '$v';
+    return s.isNotEmpty && s != 'null';
   }
 
   void _completeEmpty() {
