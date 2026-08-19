@@ -34,6 +34,15 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  # Force CocoaPods only on iOS. Both the CocoaPods `Firebase/Messaging` pod and
+  # the firebase-ios-sdk SPM package define a module named `Firebase`; leaving
+  # SPM on causes "Redefinition of module 'Firebase'" during `xcodebuild archive`
+  # on any Flutter 3.24+ toolchain. This opts the app out of SPM without
+  # touching the plugin registrations (each firebase_* plugin still installs
+  # via its Pod).
+  config:
+    enable-swift-package-manager: false
+
   uses-material-design: true
 
   assets:
