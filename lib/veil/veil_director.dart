@@ -71,6 +71,17 @@ class VeilDirector {
       return MirrorTarget(coldUrl, coldLaunch: true);
     }
 
+    // SceneDelegate saw a notificationResponse but couldn't extract a URL
+    // from the payload — force the mirror route so the pipeline falls
+    // through to the config endpoint / cached URL instead of the native
+    // game. Without this a push tap on a user who was previously routed to
+    // house strands them on the wrong screen.
+    final pushBoot = await CurtainCue.consumeBoot();
+    if (pushBoot && vault.route != VeilRoute.mirror) {
+      _trace(() => '[MSQ.VEIL] cold push tap w/o URL → force mirror');
+      await vault.saveRoute(VeilRoute.mirror);
+    }
+
     onProgress(0.14);
     return switch (vault.route) {
       VeilRoute.undecided => _firstDecision(onProgress),
@@ -93,6 +104,18 @@ class VeilDirector {
     try {
       await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
     } catch (_) {}
+    // FCM's `getInitialMessage()` writes any cold-start push URL into the
+    // vault only AFTER `herald.boot()` finishes. Consume it here — before
+    // the config request — otherwise a push tap on a fresh install would be
+    // silently overwritten by the config endpoint's default destination.
+    final pushUrl = await vault.consumePushUrl();
+    if (pushUrl != null && pushUrl.isNotEmpty) {
+      _trace(() => '[MSQ.VEIL] first: FCM initial push → open');
+      await vault.saveRoute(VeilRoute.mirror);
+      unawaited(_backgroundDispatch());
+      progress(1);
+      return MirrorTarget(pushUrl, coldLaunch: true);
+    }
     if (!await scout.canReachNetwork()) {
       _trace(() => '[MSQ.VEIL] first: DNS probe failed → hush');
       return const HushTarget();
@@ -178,6 +201,17 @@ class VeilDirector {
       return const HouseTarget();
     }
     await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
+    // A cold-start push on a user previously routed to house must still open
+    // the mirror. `herald.boot()` has now landed any FCM initial message in
+    // the vault — pick it up before deciding between native game and config.
+    final pushUrl = await vault.consumePushUrl();
+    if (pushUrl != null && pushUrl.isNotEmpty) {
+      _trace(() => '[MSQ.VEIL] returning-house: FCM push → open');
+      await vault.saveRoute(VeilRoute.mirror);
+      unawaited(_backgroundDispatch());
+      progress(1);
+      return MirrorTarget(pushUrl, coldLaunch: true);
+    }
     if (!await scout.canReachNetwork()) {
       progress(1);
       return const HouseTarget();

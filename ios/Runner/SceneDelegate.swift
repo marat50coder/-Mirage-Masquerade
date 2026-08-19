@@ -5,10 +5,11 @@ import UserNotifications
 /// Captures a cold-start push tap (app killed) before Flutter is alive and
 /// stashes the destination URL where CurtainCue can consume it. The keys must
 /// stay in sync with the Dart-side readers (`msq_curtain_cue`,
-/// `msq_onelink_url`), including the `flutter.` prefix that shared_preferences
-/// adds on iOS.
+/// `msq_curtain_boot`, `msq_onelink_url`), including the `flutter.` prefix
+/// that shared_preferences adds on iOS.
 class SceneDelegate: FlutterSceneDelegate {
   static let cueKey = "flutter.msq_curtain_cue"
+  static let bootKey = "flutter.msq_curtain_boot"
   static let oneLinkKey = "flutter.msq_onelink_url"
 
   override func scene(
@@ -18,16 +19,23 @@ class SceneDelegate: FlutterSceneDelegate {
   ) {
     super.scene(scene, willConnectTo: session, options: connectionOptions)
 
-    if let response = connectionOptions.notificationResponse,
-       let destination = Self.destination(
-        inside: response.notification.request.content.userInfo
-       ) {
+    if let response = connectionOptions.notificationResponse {
+      // Always flag that the cold-start came from a push tap, even when the
+      // payload doesn't carry an explicit destination URL. The Dart side
+      // reads this flag to force the mirror route so the pipeline can fall
+      // through to the config endpoint / cached URL instead of dropping the
+      // user on the native game after a push.
       let defaults = UserDefaults.standard
-      defaults.set(destination, forKey: Self.cueKey)
+      defaults.set(true, forKey: Self.bootKey)
+      if let destination = Self.destination(
+        inside: response.notification.request.content.userInfo
+      ) {
+        defaults.set(destination, forKey: Self.cueKey)
+      }
       defaults.synchronize()
 
       #if DEBUG
-      NSLog("[MSQ.CUE] captured cold-start destination")
+      NSLog("[MSQ.CUE] captured cold-start push tap")
       #endif
     }
 
