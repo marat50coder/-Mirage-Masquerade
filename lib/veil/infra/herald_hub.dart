@@ -17,6 +17,7 @@ class HeraldHub {
   FirebaseMessaging? _messaging;
   Future<void>? _bootFuture;
   Future<bool>? _permissionFuture;
+  Future<void>? _initialTokenFuture;
   String? _token;
 
   void Function(String url)? onDestination;
@@ -57,8 +58,38 @@ class HeraldHub {
         callback(url);
       }
     });
+    // Kick APNs handshake + token fetch off the boot path. On a fresh install
+    // the APNs handshake takes 5–10 s; blocking here would keep the AppsFlyer
+    // SDK from listening in time and drop the OneLink deep-link event that
+    // fires within the first second of `initSdk`. The director calls
+    // `awaitToken()` with its own bounded budget just before the config POST.
+    _initialTokenFuture = _acquireInitialToken();
+    unawaited(_initialTokenFuture);
+  }
+
+  Future<void> _acquireInitialToken() async {
+    final messaging = _messaging;
+    if (messaging == null) return;
     await _waitForApns();
-    _token = await messaging.getToken();
+    try {
+      _token = await messaging.getToken();
+    } catch (_) {}
+  }
+
+  /// Blocks up to [timeout] for the initial FCM token to arrive. Returns the
+  /// token (may still be null if APNs never coughed one up — that's fine, the
+  /// config POST just goes without `push_token`).
+  Future<String?> awaitToken({
+    Duration timeout = const Duration(seconds: 4),
+  }) async {
+    final existing = _token;
+    if (existing != null && existing.isNotEmpty) return existing;
+    final pending = _initialTokenFuture;
+    if (pending == null) return _token;
+    try {
+      await pending.timeout(timeout, onTimeout: () {});
+    } catch (_) {}
+    return _token;
   }
 
   String? _extract(Map<String, dynamic> payload) {

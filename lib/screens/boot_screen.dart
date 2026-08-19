@@ -248,8 +248,8 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
                         Text(
                           _launching ? 'THE CURTAIN RISES' : _captions[_step].toUpperCase(),
                           textAlign: TextAlign.center,
-                          style: MM.body(landscape ? 12 : 14, color: MM.goldBright).copyWith(
-                            letterSpacing: 2.4,
+                          style: MM.body(landscape ? 8 : 9, color: MM.goldBright).copyWith(
+                            letterSpacing: 1.6,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
