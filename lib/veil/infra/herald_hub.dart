@@ -126,6 +126,14 @@ class HeraldHub {
 
   Future<bool> canOfferPermission() async {
     if (!enabled || _vault.pushDeniedByOs) return false;
+    // Lazily boot when the director's fast-path returned a cached mirror URL
+    // and never ran `herald.boot()`. Without this, `_messaging` stays null on
+    // every return-user launch and the answer is a permanent `false`, which
+    // suppressed the HeraldInvite re-show even after the snooze window
+    // (VeilConfig.pushSnoozeSeconds) had elapsed.
+    try {
+      await boot();
+    } catch (_) {}
     final messaging = _messaging;
     if (messaging == null) return false;
     final status =

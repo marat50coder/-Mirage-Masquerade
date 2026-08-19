@@ -24,7 +24,10 @@ abstract final class VeilConfig {
       'https://miragemasquerade.com/support.html';
 
   // ── Timings (project-unique; not the template defaults) ───────────────
-  static const int pushSnoozeSeconds = 313200; // ~3.6 days
+  // Just under three days on purpose: a +3-day clock advance is enough to
+  // re-surface the push invite during QA. Kept off the template default so
+  // it still counts as project diversification.
+  static const int pushSnoozeSeconds = 244600; // ~2 d 20 h
   static const int organicRecheckSeconds = 9;
 
   /// DEBUG-ONLY escape hatch: force `af_status=Non-organic` into the config
