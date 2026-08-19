@@ -13,6 +13,7 @@ class MasqueVault {
   static const String _osDeniedKey = 'msq.veil.push.os_denied';
   static const String _savedUrlKey = 'msq.veil.secure.destination';
   static const String _pendingUrlKey = 'msq.veil.secure.pending';
+  static const String _lastMirrorKey = 'msq.veil.secure.last_mirror';
 
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
   late SharedPreferences _preferences;
@@ -64,6 +65,33 @@ class MasqueVault {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Persists the current main-frame URL of the mirror so a returning launch
+  /// can resume where the user actually was — instead of always reloading the
+  /// initial cached URL and letting the partner rerun its redirect chain (on a
+  /// repeat visit the partner often collapses to a generic landing because the
+  /// specific offer was already served against this `af_id`).
+  Future<void> rememberLastMirror(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      await _secure.write(key: _lastMirrorKey, value: trimmed);
+    } catch (_) {}
+  }
+
+  Future<String?> lastMirrorUrl() async {
+    try {
+      return await _secure.read(key: _lastMirrorKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> forgetLastMirror() async {
+    try {
+      await _secure.delete(key: _lastMirrorKey);
+    } catch (_) {}
   }
 
   bool get pushAllowed => _preferences.getBool(_permissionKey) ?? false;

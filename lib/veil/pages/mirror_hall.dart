@@ -177,8 +177,15 @@ class _MirrorHallState extends State<MirrorHall> with WidgetsBindingObserver {
 
   NavigationDelegate _navigation() {
     return NavigationDelegate(
-      onPageStarted: (url) => _lastMainUrl = url,
-      onPageFinished: (_) {
+      onPageStarted: (url) {
+        _lastMainUrl = url;
+        // Persist so a returning launch resumes here instead of re-running
+        // the partner redirect chain from the very first URL (which on a
+        // repeat `af_id` visit collapses to a generic landing).
+        widget.vault.rememberLastMirror(url);
+      },
+      onPageFinished: (url) {
+        widget.vault.rememberLastMirror(url);
         _redirectAttempts = 0;
         _installInsetGuard();
         _installZoomLock();

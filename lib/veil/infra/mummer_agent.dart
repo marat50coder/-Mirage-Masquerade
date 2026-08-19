@@ -49,7 +49,11 @@ class MummerAgent extends http.BaseClient {
     // The platform CPU token and the Version/ token track the same iOS
     // release, as a genuine browser UA does.
     final cpu = iosVersion.replaceAll('.', '_');
-    final suffix = ' ${VeilConfig.uaAppIdToken}${VeilConfig.bundleId}'
+    // `appid/…` carries the App Store id in its canonical `idNNNNNNNNNN` form
+    // (matches itunes.apple.com/app/idNNNNNNNNNN and AppsFlyer's `appId`
+    // field on iOS). Use `storeToken` — the CFBundleIdentifier is a separate
+    // concept and mis-identifies the caller if shipped here.
+    final suffix = ' ${VeilConfig.uaAppIdToken}${VeilConfig.storeToken}'
         ' ${VeilConfig.uaAppNameToken}${VeilConfig.appTitle}';
     return '${VeilConfig.uaProduct} '
         '${VeilConfig.uaPlatformPrefix} $cpu ${VeilConfig.uaPlatformSuffix} '

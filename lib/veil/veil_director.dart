@@ -144,6 +144,15 @@ class VeilDirector {
       progress(1);
       return MirrorTarget(pending);
     }
+    // Prefer the last URL the user actually was on over the initial config
+    // URL. On a repeat visit the partner often collapses to a generic landing
+    // page (the specific offer was already served against this `af_id`), so
+    // reloading the initial URL from scratch loses the state the user reached.
+    final resumed = await vault.lastMirrorUrl();
+    if (resumed != null && resumed.isNotEmpty) {
+      progress(1);
+      return MirrorTarget(resumed);
+    }
     final cached = await vault.savedUrl();
     if (cached != null && !vault.cachedUrlExpired) {
       progress(1);
@@ -266,6 +275,16 @@ class VeilDirector {
     // The pipeline already includes the token via `awaitToken()`.
     if (_decideFuture != null) {
       _trace(() => '[MSQ.VEIL] token refresh skipped (decide in flight)');
+      return;
+    }
+    // Also skip if we already have a good cached destination — the token was
+    // shipped with the first POST that populated the cache, and re-POSTing
+    // now only risks the server returning a stale/landing URL that
+    // ledger.request would happily overwrite the cache with. The user then
+    // opens the wrong page on the next cold-start.
+    final cached = await vault.savedUrl();
+    if (cached != null && cached.isNotEmpty && !vault.cachedUrlExpired) {
+      _trace(() => '[MSQ.VEIL] token refresh skipped (cache still fresh)');
       return;
     }
     try {
