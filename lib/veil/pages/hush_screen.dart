@@ -41,23 +41,17 @@ class _HushScreenState extends State<HushScreen> {
       _checking = true;
       _stillOffline = false;
     });
-    bool online = false;
-    try {
-      online = await widget.scout.canReachNetwork();
-    } catch (_) {
-      online = false;
-    }
+    // Deliberately no `canReachNetwork()` gate here — DNS lookups on iOS
+    // can throw SocketException during the first launch window even with
+    // Wi-Fi on, and re-checking here would trap the user on 'Still no
+    // connection' forever. The retry re-runs the whole pipeline; the
+    // config POST inside is the authoritative online test. If it fails,
+    // the pipeline will land back on this screen naturally.
+    await Future<void>.delayed(const Duration(milliseconds: 320));
     if (!mounted) return;
-    if (online) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: widget.retryBuilder),
-      );
-      return;
-    }
-    setState(() {
-      _checking = false;
-      _stillOffline = true;
-    });
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: widget.retryBuilder),
+    );
   }
 
   @override

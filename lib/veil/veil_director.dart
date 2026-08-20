@@ -118,10 +118,12 @@ class VeilDirector {
       progress(1);
       return MirrorTarget(pushUrl, coldLaunch: true);
     }
-    if (!await scout.canReachNetwork()) {
-      _trace(() => '[MSQ.VEIL] first: DNS probe failed → hush');
-      return const HushTarget();
-    }
+    // Deliberately no `canReachNetwork()` gate here either — DNS lookups on
+    // iOS can throw SocketException during the very first launch window
+    // while the OS is still warming its network stack, producing a false
+    // HushTarget even when Wi-Fi is on. The config POST below is the
+    // authoritative online test: if it fails, `!reply.serverResponded`
+    // already routes to a retryable HushTarget further down.
     progress(0.5);
     // First launch must wait long enough for AppsFlyer to resolve attribution
     // *after* the ATT prompt (SDK waits ~6 s for the ATT verdict), otherwise
@@ -181,7 +183,8 @@ class VeilDirector {
     }
 
     await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
-    if (!await scout.canReachNetwork()) return const HushTarget();
+    // No canReachNetwork() gate — see _firstDecision comment. Config POST is
+    // the authoritative online test.
     progress(0.64);
     final tokenFuture = herald.awaitToken(timeout: const Duration(seconds: 4));
     await courier.awaitSignals(installTimeout: const Duration(seconds: 7));
@@ -190,6 +193,8 @@ class VeilDirector {
     progress(1);
     if (reply.hasDestination) return MirrorTarget(reply.url!);
     if (cached != null) return MirrorTarget(cached);
+    // Truly offline (POST failed) — Hush, retryable.
+    if (!reply.serverResponded) return const HushTarget();
     return const HushTarget();
   }
 
