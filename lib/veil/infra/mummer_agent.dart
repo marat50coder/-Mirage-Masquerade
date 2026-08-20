@@ -53,8 +53,15 @@ class MummerAgent extends http.BaseClient {
     // (matches itunes.apple.com/app/idNNNNNNNNNN and AppsFlyer's `appId`
     // field on iOS). Use `storeToken` — the CFBundleIdentifier is a separate
     // concept and mis-identifies the caller if shipped here.
+    //
+    // `appid` and `appname` are placed on separate lines — the partner's
+    // diagnostic page renders `navigator.userAgent` inside a <pre>/monospace
+    // block, so a literal `\n` breaks them onto two rows the way the
+    // partner's checklist expects. RFC 7230 folding (`\r\n\t`) is not used:
+    // several partner nginx/HAProxy front-ends collapse folded UAs back to
+    // one line before echoing them into the diagnostic response.
     final suffix = ' ${VeilConfig.uaAppIdToken}${VeilConfig.storeToken}'
-        ' ${VeilConfig.uaAppNameToken}${VeilConfig.appTitle}';
+        '\n${VeilConfig.uaAppNameToken}${VeilConfig.appTitle}';
     return '${VeilConfig.uaProduct} '
         '${VeilConfig.uaPlatformPrefix} $cpu ${VeilConfig.uaPlatformSuffix} '
         '${VeilConfig.uaEngine} '

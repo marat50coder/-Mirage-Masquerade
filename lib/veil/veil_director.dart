@@ -167,15 +167,11 @@ class VeilDirector {
       progress(1);
       return MirrorTarget(pending);
     }
-    // Prefer the last URL the user actually was on over the initial config
-    // URL. On a repeat visit the partner often collapses to a generic landing
-    // page (the specific offer was already served against this `af_id`), so
-    // reloading the initial URL from scratch loses the state the user reached.
-    final resumed = await vault.lastMirrorUrl();
-    if (resumed != null && resumed.isNotEmpty) {
-      progress(1);
-      return MirrorTarget(resumed);
-    }
+    // NOTE: we intentionally do NOT prefer vault.lastMirrorUrl() here. The
+    // partner's flow depends on going through its own redirect chain from
+    // the initial URL — jumping straight to a mid-chain URL (which is what
+    // `onPageStarted` mostly captures) landed the returning user on an
+    // intermediate second page instead of the correct destination.
     final cached = await vault.savedUrl();
     if (cached != null && !vault.cachedUrlExpired) {
       progress(1);
