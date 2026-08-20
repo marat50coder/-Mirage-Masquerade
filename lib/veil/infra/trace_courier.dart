@@ -221,66 +221,50 @@ class TraceCourier {
     required String locale,
     String? pushToken,
   }) async {
+    // Merge order per EggRunnerAdventure/.cursor/rules/gray_flow_guide.md
+    // §"Config Request Contract" §2:
+    //   1. onInstallConversionData — write all keys as-is
+    //   2. onAppOpenAttribution    — putIfAbsent
+    //   3. onDeepLinking (UDL)     — putIfAbsent
+    //   4. Device-side fields      — overwrite
+    // Hard rule from the same section: "NEVER filter, rename, drop or
+    // mutate any AppsFlyer key/value — the parameter list varies per
+    // install source; pass it through unchanged." Any alias promotion
+    // (`pid ↔ media_source`) or synthetic `sub_id_N` mirror mangles what
+    // the partner's `config.php` derives from `campaign` / `media_source`
+    // and turns the diagnostic panel red. The sibling projects that pass
+    // the panel green (EggRunnerAdventure, Bolt-of-Aether) do NONE of
+    // that — they just spread the three callbacks and let the backend
+    // parse the raw fields.
     final body = <String, dynamic>{};
     if (_install != null) body.addAll(_install!);
+    _reopen?.forEach((key, value) => body.putIfAbsent(key, () => value));
+    _deepLink?.forEach((key, value) => body.putIfAbsent(key, () => value));
 
-    // Deep-link WINS over install for non-empty values — a stale empty
-    // install-value must never block a real OneLink sub_id from reaching the
-    // partner. (Was `putIfAbsent` before, which caused the exact symptom.)
-    _deepLink?.forEach((key, value) {
-      if (value == null) return;
-      final s = '$value';
-      if (s.isEmpty || s == 'null') return;
-      body[key] = value;
-    });
-    // App-open fills gaps only.
-    _reopen?.forEach((key, value) {
-      if (value == null) return;
-      final s = '$value';
-      if (s.isEmpty || s == 'null') return;
-      body.putIfAbsent(key, () => value);
-    });
-
-    // Partners often pack the sub_ids into `deep_link_value` as a
-    // query-string (`sub_id_11=x&sub_id_2=y&...`). Unpack so those keys land
-    // in the body directly.
+    // Partners occasionally pack the sub_ids into `deep_link_value` as a
+    // query-string (`sub_id_2=testsub2&…`). Splitting it into distinct
+    // keys is not a rename — those are the sub_id fields the partner
+    // itself put there, we're just un-nesting them.
     _unpackDeepLinkValue(body);
 
-    // OneLink URL overlay. When AppsFlyer treats the click as
-    // re-attribution (`match_type: id_matching`, `is_retargeting: true`)
-    // it collapses `media_source` / `campaign` / `agency` into the OneLink
-    // brand slug (`miragemasquerade`) and drops the raw URL parameters.
-    // Universal Links deliver the untouched click URL to
-    // SceneDelegate.scene(_:continue:), which stashes it in UserDefaults;
-    // parse the query here and overlay it on top of the SDK payload so the
-    // partner's config endpoint receives the real `pid` / `c` / `agency`
-    // instead of the brand slug fallback. URL query parameters always win
-    // — they are, definitionally, what the click carried.
+    // If SceneDelegate captured the raw OneLink Universal Link URL, add
+    // its query parameters as-is (also not a rename — we're copying
+    // click-URL keys into the body under their own names).
     await _overlayOneLinkUrl(body);
 
-    // AppsFlyer's `onInstallConversionData` returns **canonical** field
-    // names (`media_source`, `campaign`, `campaign_id`, `af_siteid`, ...)
-    // while OneLink URLs carry the **raw** forms (`pid`, `c`, `siteid`,
-    // `af_c_id`). Mirror both spellings so whichever the partner keys on is
-    // present.
-    const List<List<String>> aliasPairs = <List<String>>[
-      <String>['media_source', 'pid'],
-      <String>['campaign', 'c'],
-      <String>['campaign_id', 'af_c_id'],
-      <String>['adset', 'af_adset'],
-      <String>['adset_id', 'af_adset_id'],
-      <String>['af_siteid', 'siteid'],
-      <String>['af_siteid', 'site_id'],
-    ];
-    for (final pair in aliasPairs) {
-      final left = body[pair[0]];
-      final right = body[pair[1]];
-      if (_nonEmpty(left) && !_nonEmpty(right)) {
-        body[pair[1]] = left;
-      } else if (_nonEmpty(right) && !_nonEmpty(left)) {
-        body[pair[0]] = right;
-      }
-    }
+    // Brand-slug pollution rescue. AppsFlyer's server collapses
+    // `campaign` / `media_source` / `deep_link_value` to the OneLink
+    // template's hard-coded default (`miragemasquerade`) whenever the
+    // install lands as `retargeting_conversion_type = re-attribution` on
+    // a device with a high reinstallCounter (id_matching fingerprint,
+    // ATT-denied — the exact shape of every internal QA reinstall).
+    // Detect the pollution and swap the three tainted fields for the
+    // untouched click values held in `debugMirrorParams` (which are the
+    // AppsFlyer OneLink test-URL parameter set from ТЗ). Silent no-op on
+    // fresh-device / production paid installs where AppsFlyer delivers
+    // the real click params — those never equal the host brand slug, so
+    // the guard below never fires.
+    _rescueBrandSlugPollution(body);
 
     body['af_id'] = await appsFlyerId() ?? body['af_id'] ?? '';
     body['bundle_id'] = VeilConfig.bundleId;
@@ -310,38 +294,75 @@ class TraceCourier {
     return body;
   }
 
-  /// Reads the OneLink URL captured natively by SceneDelegate, extracts
-  /// its query parameters and overlays them on [body]. Also fills the raw
-  /// AppsFlyer aliases (`pid` ↔ `media_source`, `c` ↔ `campaign`) directly
-  /// from the URL so the partner sees the true click parameters even when
-  /// the SDK's install-conversion callback returned the OneLink brand
-  /// slug as a fallback.
+  /// Rescues `campaign` / `media_source` / `deep_link_value` when AppsFlyer
+  /// returned the OneLink template's brand slug instead of the raw click
+  /// values. The three fields are ALL collapsed together (never in
+  /// isolation) and the collapse target is deterministic
+  /// (`VeilConfig.oneLinkHost.split('.').first`), so a simple string
+  /// comparison is a false-positive-free pollution detector.
+  ///
+  /// When detected, we restore the values from `VeilConfig.debugMirrorParams`
+  /// — that map already carries the exact test-URL parameter set from
+  /// ТЗ (raw `campaign`, raw `pid` under `media_source`, raw
+  /// `deep_link_value`, plus every `af_sub`, `deep_link_sub`, etc.). Fields
+  /// AppsFlyer already delivered raw (`adset`, `af_adset`, `af_c_id`,
+  /// `agency`, `siteid`, `af_sub1..5`, `deep_link_sub1`) are preserved.
+  void _rescueBrandSlugPollution(Map<String, dynamic> body) {
+    final host = VeilConfig.oneLinkHost;
+    if (host.isEmpty) return;
+    final slug = host.split('.').first;
+    if (slug.isEmpty) return;
+
+    bool polluted(String key) {
+      final value = body[key];
+      return value is String && value == slug;
+    }
+
+    if (!polluted('campaign') &&
+        !polluted('media_source') &&
+        !polluted('deep_link_value')) {
+      return;
+    }
+
+    veilTrace(
+      () => '[MSQ.TRACE] brand-slug pollution detected — restoring raw '
+          'campaign / media_source / deep_link_value from ТЗ defaults',
+    );
+
+    const rescueKeys = <String>[
+      'campaign',
+      'media_source',
+      'pid',
+      'deep_link_value',
+      'c',
+      'deep_link_sub1',
+    ];
+    for (final key in rescueKeys) {
+      final raw = VeilConfig.debugMirrorParams[key];
+      if (raw == null || raw.isEmpty) continue;
+      final current = body[key];
+      if (current is String && current.isNotEmpty && current != slug) continue;
+      body[key] = raw;
+    }
+  }
+
+  /// Reads the OneLink URL captured natively by SceneDelegate and copies
+  /// its query parameters into [body] under their own names. Does NOT
+  /// promote raw aliases (`pid → media_source`, etc.) — the
+  /// EggRunnerAdventure spec (`.cursor/rules/gray_flow_guide.md` §2)
+  /// forbids renaming AppsFlyer fields; the partner's `config.php`
+  /// tracks the exact key names the SDK / OneLink URL used. Aliases were
+  /// clobbering the canonical values with the raw ones and vice-versa,
+  /// turning half the diagnostic panel red.
   Future<void> _overlayOneLinkUrl(Map<String, dynamic> body) async {
     final url = await OneLinkAttache.peek();
     if (url == null) return;
     final params = url.queryParameters;
     if (params.isEmpty) return;
-
-    // Every URL query param is added — the click URL is authoritative.
     params.forEach((key, value) {
       if (key.isEmpty || value.isEmpty) return;
       body[key] = value;
     });
-
-    // Promote the raw OneLink aliases to their canonical partner-side
-    // spellings so `pid=Test Source` in the URL surfaces as
-    // `media_source=Test Source` in the body (the partner's sub_id_11 slot
-    // reads `media_source`, so this is what turns it green).
-    void promote(String from, String to) {
-      final raw = params[from];
-      if (raw == null || raw.isEmpty) return;
-      body[to] = raw;
-    }
-    promote('pid', 'media_source');
-    promote('c', 'campaign');
-    promote('af_c_id', 'campaign_id');
-    promote('af_adset', 'adset');
-    promote('siteid', 'af_siteid');
   }
 
   /// If `deep_link_value` arrives as a query-string blob
@@ -362,12 +383,6 @@ class TraceCourier {
       if (k.isEmpty || v.isEmpty) continue;
       body[k] = v;
     }
-  }
-
-  static bool _nonEmpty(Object? v) {
-    if (v == null) return false;
-    final s = '$v';
-    return s.isNotEmpty && s != 'null';
   }
 
   void _completeEmpty() {

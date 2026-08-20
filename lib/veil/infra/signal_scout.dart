@@ -15,6 +15,28 @@ class SignalScout {
     }
   }
 
+  /// Strict "truly offline" verdict — only returns `true` when the plugin
+  /// EXPLICITLY reports a non-empty list of exclusively `[none]` interfaces
+  /// (airplane mode / Wi-Fi off / no cellular). The empty-list cold-start
+  /// case iOS produces before the reachability listener registers is
+  /// deliberately treated as "unknown" so we don't strand a genuinely
+  /// online first-launch on HushScreen — that path continues into the
+  /// pipeline where the config POST is the final arbiter.
+  Future<bool> isConfirmedOffline({
+    Duration timeout = const Duration(milliseconds: 700),
+  }) async {
+    try {
+      final status = await _connectivity.checkConnectivity().timeout(
+        timeout,
+        onTimeout: () => const <ConnectivityResult>[],
+      );
+      if (status.isEmpty) return false;
+      return status.every((value) => value == ConnectivityResult.none);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Time-boxed DNS lookup against neutral hosts (never our own domain, so a
   /// VPN or an un-propagated app domain can't produce a false offline).
   ///

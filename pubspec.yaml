@@ -1,7 +1,7 @@
 name: mirage_masquerade
 description: "Mirage Masquerade - synchronise three parallel theatres of illusion."
 publish_to: 'none'
-version: 1.0.1+4
+version: 1.0.1+5
 
 environment:
   sdk: ^3.12.2

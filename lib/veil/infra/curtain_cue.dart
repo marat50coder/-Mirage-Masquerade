@@ -55,6 +55,13 @@ class OneLinkAttache {
     if (!Platform.isIOS) return null;
     try {
       final preferences = await SharedPreferences.getInstance();
+      // Force a re-read from NSUserDefaults — SharedPreferences caches
+      // values in memory on the first `getInstance()`, and the SceneDelegate
+      // write from Swift happens AFTER that cache is warm. Without reload,
+      // TraceCourier keeps seeing null (no OneLink URL), the overlay never
+      // runs and `body['campaign']` stays polluted with the OneLink brand
+      // slug that AppsFlyer collapses re-attribution installs to.
+      await preferences.reload();
       final value = preferences.getString(_dartKey)?.trim();
       if (value == null || value.isEmpty) return null;
       return Uri.tryParse(value);

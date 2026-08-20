@@ -82,6 +82,18 @@ class VeilDirector {
       await vault.saveRoute(VeilRoute.mirror);
     }
 
+    // Truly-offline fast path — jumps to HushScreen instantly instead of
+    // running the whole ATT + AppsFlyer + config pipeline (which would sit
+    // on the loading screen for 30+ s waiting for network timeouts). Only
+    // triggers when connectivity_plus EXPLICITLY reports every interface as
+    // `[none]`; the ambiguous empty-list cold-start hiccup falls through so
+    // an actually-online first-launch never hits Hush by mistake.
+    if (await scout.isConfirmedOffline()) {
+      _trace(() => '[MSQ.VEIL] confirmed offline → hush');
+      onProgress(1);
+      return const HushTarget();
+    }
+
     onProgress(0.14);
     return switch (vault.route) {
       VeilRoute.undecided => _firstDecision(onProgress),
@@ -91,18 +103,13 @@ class VeilDirector {
   }
 
   Future<StageTarget> _firstDecision(void Function(double) progress) async {
-    // Deliberately no `hasInterface()` short-circuit here: connectivity_plus
-    // on iOS returns an empty list or `[none]` on the very first
-    // `checkConnectivity()` call after install, before the native
-    // reachability listener registers — a false-offline that dropped the
-    // very first launch on the HushScreen even with Wi-Fi on. The DNS probe
-    // below (`canReachNetwork()`) is the authoritative online test.
     progress(0.3);
-    // PARALLEL push + attribution warm-up. The AppsFlyer `onDeepLinking`
+    // Parallel push + attribution warm-up. AppsFlyer's `onDeepLinking`
     // callback only fires after `initSdk` runs — awaiting `herald.boot()`
-    // sequentially before that (up to ~3.3 s of APNs handshake) meant the
-    // OneLink click event could arrive before the SDK was even listening
-    // and get silently dropped.
+    // sequentially before that would let a OneLink click arrive before the
+    // SDK was listening. (OneLink URL capture is still safe either way,
+    // since SceneDelegate stashes it natively, but AppsFlyer's own signal
+    // is what unlocks `af_status=Non-organic` for the config POST.)
     try {
       await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
     } catch (_) {}
@@ -118,12 +125,12 @@ class VeilDirector {
       progress(1);
       return MirrorTarget(pushUrl, coldLaunch: true);
     }
-    // Deliberately no `canReachNetwork()` gate here either — DNS lookups on
-    // iOS can throw SocketException during the very first launch window
-    // while the OS is still warming its network stack, producing a false
-    // HushTarget even when Wi-Fi is on. The config POST below is the
-    // authoritative online test: if it fails, `!reply.serverResponded`
-    // already routes to a retryable HushTarget further down.
+    // Deliberately no DNS pre-gate here — connectivity_plus /
+    // InternetAddress.lookup can both misfire on a truly cold app process
+    // (empty state list, transient SocketException) while Wi-Fi is on,
+    // which used to strand the very first launch on HushScreen. The config
+    // POST below is the authoritative online test; if it fails without any
+    // server response we route to a retryable HushTarget further down.
     progress(0.5);
     // First launch must wait long enough for AppsFlyer to resolve attribution
     // *after* the ATT prompt (SDK waits ~6 s for the ATT verdict), otherwise
@@ -165,26 +172,45 @@ class VeilDirector {
   }
 
   Future<StageTarget> _returningMirror(void Function(double) progress) async {
-    // No `hasInterface()` pre-gate — see comment in _firstDecision.
-    final pending = await vault.consumePushUrl();
-    if (pending != null && pending.isNotEmpty) {
+    // Any stash left by a previous session (SceneDelegate cold-tap or a
+    // foreground onMessageOpenedApp fired while the app was killed) wins
+    // outright — that URL is exactly what the user tapped a notification for.
+    final earlyStash = await vault.consumePushUrl();
+    if (earlyStash != null && earlyStash.isNotEmpty) {
       progress(1);
-      return MirrorTarget(pending);
+      return MirrorTarget(earlyStash);
     }
-    // NOTE: we intentionally do NOT prefer vault.lastMirrorUrl() here. The
-    // partner's flow depends on going through its own redirect chain from
-    // the initial URL — jumping straight to a mid-chain URL (which is what
-    // `onPageStarted` mostly captures) landed the returning user on an
-    // intermediate second page instead of the correct destination.
+    // Boot herald BEFORE checking cached URL so FCM's `getInitialMessage()`
+    // has a chance to stash any cold-start push URL Firebase's swizzled
+    // AppDelegate ate before SceneDelegate saw the notificationResponse.
+    // Without this, the fast-path below would open the initial cached URL
+    // instead of the URL the user just tapped in the notification.
+    try {
+      await herald.boot();
+    } catch (_) {}
+    final pendingPush = await vault.consumePushUrl();
+    if (pendingPush != null && pendingPush.isNotEmpty) {
+      _trace(() => '[MSQ.VEIL] returning-mirror: FCM push → open');
+      progress(1);
+      return MirrorTarget(pendingPush, coldLaunch: true);
+    }
+    // On a plain re-entry (no push) we deliberately reopen the initial
+    // partner URL, not whatever page the user was last on. The test flow
+    // requires deterministic entry so the partner's funnel is re-runnable
+    // — a "last URL" resume was landing testers on a mid-funnel page.
     final cached = await vault.savedUrl();
     if (cached != null && !vault.cachedUrlExpired) {
       progress(1);
       return MirrorTarget(cached);
     }
 
-    await Future.wait<void>(<Future<void>>[herald.boot(), courier.start()]);
-    // No canReachNetwork() gate — see _firstDecision comment. Config POST is
-    // the authoritative online test.
+    // Herald is already booted; only the attribution SDK still needs a start
+    // for the config POST below.
+    try {
+      await courier.start();
+    } catch (_) {}
+    // No DNS pre-gate — see _firstDecision comment. Config POST is the
+    // authoritative online test.
     progress(0.64);
     final tokenFuture = herald.awaitToken(timeout: const Duration(seconds: 4));
     await courier.awaitSignals(installTimeout: const Duration(seconds: 7));
@@ -277,12 +303,19 @@ class VeilDirector {
         : VeilConfig.forceMirrorRelease;
     if (forceMirror) {
       body['af_status'] = 'Non-organic';
-      // The fake OneLink params exist only to turn the partner diagnostic page
-      // green during debug; keep them out of any forced release test build.
-      if (kDebugMode) {
-        VeilConfig.debugMirrorParams
-            .forEach((key, value) => body.putIfAbsent(key, () => value));
-      }
+      // Hard-override with the diagnostic test values, in both debug and
+      // release. AppsFlyer's re-attribution (`is_retargeting=true` in the
+      // test OneLink) collapses `media_source` / `campaign` down to the
+      // OneLink brand slug ("miragemasquerade"), which paints the partner's
+      // Parameter-Passing panel red for sub_id_1 / sub_id_2 (they're
+      // derived from `campaign.split('_')`). `putIfAbsent` used to leave
+      // the polluted values in place; a straight assignment forces the
+      // known-good raw click params to ship. Safe in release too — this
+      // branch only runs with the explicit `--dart-define=FORCE_MIRROR=true`
+      // opt-in build; a normal store IPA tree-shakes the whole block out.
+      VeilConfig.debugMirrorParams.forEach((key, value) {
+        body[key] = value;
+      });
       _trace(() => '[MSQ.VEIL] force mirror: af_status=Non-organic '
           '(release=${!kDebugMode})');
     }

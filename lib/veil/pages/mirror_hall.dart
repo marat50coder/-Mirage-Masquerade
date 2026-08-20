@@ -45,6 +45,15 @@ class _MirrorHallState extends State<MirrorHall> with WidgetsBindingObserver {
   bool _viewportReady = false;
   bool _coldReloadIssued = false;
   bool _offlineShown = false;
+  // Only flip to Hush on a `[none]` connectivity event AFTER we've observed
+  // at least one online event first. iOS' cold-start reachability listener
+  // frequently emits a spurious `[none]` (or empty list) as its FIRST event
+  // — before the native stack has finished initializing — even while Wi-Fi
+  // is on and the WebView is happily loading. Trusting that first event
+  // would strand every mirror entry on HushScreen. Once we've *seen* a real
+  // online interface, any subsequent transition to `[none]` is genuine and
+  // gets flipped immediately.
+  bool _sawOnline = false;
   int _redirectAttempts = 0;
   String? _lastMainUrl;
   Timer? _metricsDebounce;
@@ -94,10 +103,30 @@ class _MirrorHallState extends State<MirrorHall> with WidgetsBindingObserver {
         _controller.loadRequest(uri);
       }
     };
-    _networkSubscription = widget.scout.changes.listen((states) {
-      if (states.every((state) => state == ConnectivityResult.none)) {
-        _goOffline();
+    // Prime the "online seen" latch from a bounded snapshot so a user who
+    // enters the mirror already on Wi-Fi can flip to Hush the instant they
+    // toggle it off, without having to wait for the plugin to first emit a
+    // corroborating online event.
+    _primeConnectivityLatch();
+    _networkSubscription = Connectivity().onConnectivityChanged.listen((
+      states,
+    ) {
+      if (!mounted) return;
+      final anyOnline = states.any(
+        (state) =>
+            state != ConnectivityResult.none &&
+            state != ConnectivityResult.other,
+      );
+      if (anyOnline) {
+        _sawOnline = true;
+        return;
       }
+      // `[none]` verdict — but only trust it once we've previously observed
+      // a real online interface (see `_sawOnline` comment). Empty list is
+      // treated as "unknown" and ignored too.
+      if (states.isEmpty || !_sawOnline) return;
+      if (!states.every((state) => state == ConnectivityResult.none)) return;
+      _goOffline();
     });
 
     if (widget.coldLaunch) {
@@ -230,6 +259,23 @@ class _MirrorHallState extends State<MirrorHall> with WidgetsBindingObserver {
         return NavigationDecision.prevent;
       },
     );
+  }
+
+  Future<void> _primeConnectivityLatch() async {
+    try {
+      final status = await Connectivity().checkConnectivity().timeout(
+        const Duration(milliseconds: 900),
+        onTimeout: () => const <ConnectivityResult>[],
+      );
+      if (!mounted) return;
+      if (status.any(
+        (state) =>
+            state != ConnectivityResult.none &&
+            state != ConnectivityResult.other,
+      )) {
+        _sawOnline = true;
+      }
+    } catch (_) {}
   }
 
   Future<void> _showOfflineAfterProbe() async {

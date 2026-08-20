@@ -58,11 +58,12 @@ class HeraldHub {
         callback(url);
       }
     });
-    // Kick APNs handshake + token fetch off the boot path. On a fresh install
-    // the APNs handshake takes 5–10 s; blocking here would keep the AppsFlyer
-    // SDK from listening in time and drop the OneLink deep-link event that
-    // fires within the first second of `initSdk`. The director calls
-    // `awaitToken()` with its own bounded budget just before the config POST.
+    // APNs handshake is kicked off in the background. Before the very first
+    // notification permission grant, `_waitForApns` just polls a nil token
+    // (Firebase can't register with APNs without permission) — awaiting it
+    // inline would tack ~3.3 s of dead time onto every first launch for no
+    // network benefit. The director calls `awaitToken()` later with its own
+    // bounded budget just before the config POST.
     _initialTokenFuture = _acquireInitialToken();
     unawaited(_initialTokenFuture);
   }
