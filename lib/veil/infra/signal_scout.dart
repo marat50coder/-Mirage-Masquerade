@@ -17,8 +17,15 @@ class SignalScout {
 
   /// Time-boxed DNS lookup against neutral hosts (never our own domain, so a
   /// VPN or an un-propagated app domain can't produce a false offline).
+  ///
+  /// Does NOT gate on `hasInterface()` on purpose: on iOS the very first
+  /// `checkConnectivity()` call after a cold-start install can return an
+  /// empty list or `[none]` before the native reachability listener has
+  /// registered, which would produce a spurious HushTarget on the first
+  /// launch even when Wi-Fi is on. DNS resolution is the authoritative
+  /// answer — if the lookup succeeds we have connectivity, regardless of
+  /// what the plugin has cached so far.
   Future<bool> canReachNetwork() async {
-    if (!await hasInterface()) return false;
     for (final host in const <String>['cloudflare.com', 'apple.com']) {
       try {
         final records = await InternetAddress.lookup(

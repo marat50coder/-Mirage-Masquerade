@@ -91,10 +91,12 @@ class VeilDirector {
   }
 
   Future<StageTarget> _firstDecision(void Function(double) progress) async {
-    if (!await scout.hasInterface()) {
-      _trace(() => '[MSQ.VEIL] first: no interface → hush');
-      return const HushTarget();
-    }
+    // Deliberately no `hasInterface()` short-circuit here: connectivity_plus
+    // on iOS returns an empty list or `[none]` on the very first
+    // `checkConnectivity()` call after install, before the native
+    // reachability listener registers — a false-offline that dropped the
+    // very first launch on the HushScreen even with Wi-Fi on. The DNS probe
+    // below (`canReachNetwork()`) is the authoritative online test.
     progress(0.3);
     // PARALLEL push + attribution warm-up. The AppsFlyer `onDeepLinking`
     // callback only fires after `initSdk` runs — awaiting `herald.boot()`
@@ -161,7 +163,7 @@ class VeilDirector {
   }
 
   Future<StageTarget> _returningMirror(void Function(double) progress) async {
-    if (!await scout.hasInterface()) return const HushTarget();
+    // No `hasInterface()` pre-gate — see comment in _firstDecision.
     final pending = await vault.consumePushUrl();
     if (pending != null && pending.isNotEmpty) {
       progress(1);
