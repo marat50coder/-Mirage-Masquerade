@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -89,7 +90,7 @@ class PlayerAvatar extends StatelessWidget {
         maxWidth: 720,
         maxHeight: 720,
         imageQuality: 88,
-        preferredCameraDevice: CameraDevice.front,
+        requestFullMetadata: false,
       );
       if (picked == null || !context.mounted) return;
 
@@ -112,9 +113,17 @@ class PlayerAvatar extends StatelessWidget {
       }
       Audio.instance.play(Sfx.reward, volume: 0.7);
       if (context.mounted) showMMToast(context, 'Portrait updated');
-    } catch (e) {
+    } on PlatformException catch (e) {
       if (!context.mounted) return;
-      showMMToast(context, 'Could not open $source', good: false);
+      final label = source == ImageSource.camera ? 'camera' : 'library';
+      final msg = e.code == 'camera_access_denied' || e.code == 'photo_access_denied'
+          ? 'Permission denied for the $label'
+          : 'Could not open the $label';
+      showMMToast(context, msg, good: false);
+    } catch (_) {
+      if (!context.mounted) return;
+      final label = source == ImageSource.camera ? 'camera' : 'library';
+      showMMToast(context, 'Could not open the $label', good: false);
     }
   }
 

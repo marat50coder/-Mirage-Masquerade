@@ -49,10 +49,9 @@ class MummerAgent extends http.BaseClient {
     // The platform CPU token and the Version/ token track the same iOS
     // release, as a genuine browser UA does.
     final cpu = iosVersion.replaceAll('.', '_');
-    // `appid/…` carries the App Store id in its canonical `idNNNNNNNNNN` form
-    // (matches itunes.apple.com/app/idNNNNNNNNNN and AppsFlyer's `appId`
-    // field on iOS). Use `storeToken` — the CFBundleIdentifier is a separate
-    // concept and mis-identifies the caller if shipped here.
+    // `appid/…` carries the App Store numeric id (digits only, no `id`
+    // prefix). The CFBundleIdentifier is a separate concept and mis-identifies
+    // the caller if shipped here.
     //
     // Tokens are joined with a single space — never a raw newline. RFC 7230
     // forbids bare CR/LF in header values, and dart:io's HttpClient throws
@@ -61,7 +60,7 @@ class MummerAgent extends http.BaseClient {
     // exception (and stranded the whole app on HushScreen even with Wi-Fi
     // on). The partner's diagnostic page reads `navigator.userAgent` — a JS
     // string — where the same UA is legal and still contains both tokens.
-    final suffix = ' ${VeilConfig.uaAppIdToken}${VeilConfig.storeToken}'
+    final suffix = ' ${VeilConfig.uaAppIdToken}${VeilConfig.iosStoreId}'
         ' ${VeilConfig.uaAppNameToken}${VeilConfig.appTitle}';
     return '${VeilConfig.uaProduct} '
         '${VeilConfig.uaPlatformPrefix} $cpu ${VeilConfig.uaPlatformSuffix} '

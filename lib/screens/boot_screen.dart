@@ -44,17 +44,7 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
 
   Animation<double> _fill = const AlwaysStoppedAnimation(0);
   double _value = 0;
-  int _step = 0;
-  bool _launching = false;
-
-  static const _captions = <String>[
-    'Lighting the chandeliers',
-    'Tuning three realities',
-    'Polishing the mirrors',
-    'Waking the jesters',
-    'Rehearsing the finale',
-    'Raising the curtain',
-  ];
+  Timer? _creep;
 
   @override
   void initState() {
@@ -69,6 +59,7 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _creep?.cancel();
     _shimmer.dispose();
     _bar.dispose();
     super.dispose();
@@ -76,6 +67,7 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
 
   void _to(double target, {Duration? duration}) {
     if (!mounted) return;
+    if (target <= _value) return;
     _bar.duration = duration ?? const Duration(milliseconds: 520);
     _fill = Tween<double>(begin: _value, end: target).animate(
       CurvedAnimation(parent: _bar, curve: Curves.easeOutCubic),
@@ -85,28 +77,50 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
+  /// While the pipeline is doing a long await (network, attribution, config
+  /// POST), tick the bar forward by tiny amounts so the user never sees a
+  /// frozen number. The creep never overshoots [ceiling]; when real progress
+  /// arrives via `_to`, the bar jumps ahead and the creep continues from
+  /// there.
+  void _startCreep(double ceiling) {
+    _creep?.cancel();
+    _creep = Timer.periodic(const Duration(milliseconds: 220), (_) {
+      if (!mounted) return;
+      if (_value >= ceiling - 0.001) return;
+      _to(
+        (_value + 0.006).clamp(0.0, ceiling),
+        duration: const Duration(milliseconds: 260),
+      );
+    });
+  }
+
+  void _stopCreep() {
+    _creep?.cancel();
+    _creep = null;
+  }
+
   Future<void> _run() async {
     final started = DateTime.now();
 
     // Progress (settings/save data) is needed on both paths and is tiny.
     await Progress.instance.load();
-    _step = 0;
     _to(0.08);
 
     // Resolve organic vs attributed FIRST — nothing white-part-specific is
     // preloaded until we know we're staying in the house.
+    _startCreep(0.66);
     StageTarget target;
     try {
       target = await (widget.director?.decide(
             onProgress: (v) {
-              _step = (v * 3).clamp(0, 3).floor();
-              _to((0.08 + v * 0.60).clamp(0.0, 0.7));
+              _to((0.08 + v * 0.60).clamp(0.0, 0.68));
             },
           ) ??
           Future<StageTarget>.value(const HouseTarget()));
     } catch (_) {
       target = const HouseTarget();
     }
+    _stopCreep();
     if (!mounted) return;
 
     if (target is MirrorTarget) {
@@ -120,22 +134,22 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
 
     // House (organic / reviewer / gate closed) → warm the game.
     await Audio.instance.init();
-    _step = 3;
-    _to(0.74);
+    _to(0.72);
 
+    _startCreep(0.86);
     final canvas = A.canvasImages();
     for (var i = 0; i < canvas.length; i++) {
       await ImageBank.instance.load(canvas[i]);
-      if (i % 6 == 0) _to(0.74 + 0.14 * (i / canvas.length));
+      if (i % 6 == 0) _to(0.72 + 0.14 * (i / canvas.length));
     }
     if (!mounted) return;
     final widgets = A.widgetImages();
     for (var i = 0; i < widgets.length; i++) {
       if (!mounted) return;
       await precacheImage(AssetImage(widgets[i]), context);
-      if (i % 4 == 0) _to(0.88 + 0.07 * (i / widgets.length));
+      if (i % 4 == 0) _to(0.86 + 0.08 * (i / widgets.length));
     }
-    _step = 4;
+    _stopCreep();
     _to(0.95);
     unawaited(Audio.instance.startMusic());
 
@@ -144,9 +158,6 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
     if (wait > Duration.zero) await Future<void>.delayed(wait);
     if (!mounted) return;
 
-    // The bar only reaches 100% in the instant before the game opens.
-    _step = 5;
-    setState(() => _launching = true);
     _to(1.0, duration: const Duration(milliseconds: 620));
     await Future<void>.delayed(const Duration(milliseconds: 760));
     if (!mounted) return;
@@ -169,8 +180,7 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
     // Drive the bar to a full 100% and let the fill animation actually play
     // out before navigating, so the user visibly sees the load complete
     // instead of the bar snapping away mid-progress.
-    _step = 5;
-    setState(() => _launching = true);
+    _stopCreep();
     _to(1.0, duration: const Duration(milliseconds: 560));
     final elapsed = DateTime.now().difference(started);
     const floor = Duration(milliseconds: 1200);
@@ -205,6 +215,7 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openHush(DateTime started) async {
+    _stopCreep();
     final director = widget.director!;
     final elapsed = DateTime.now().difference(started);
     const floor = Duration(milliseconds: 700);
@@ -246,10 +257,10 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _launching ? 'THE CURTAIN RISES' : _captions[_step].toUpperCase(),
+                          'LOADING',
                           textAlign: TextAlign.center,
-                          style: MM.body(landscape ? 8 : 9, color: MM.goldBright).copyWith(
-                            letterSpacing: 1.6,
+                          style: MM.body(landscape ? 11 : 13, color: MM.goldBright).copyWith(
+                            letterSpacing: 3.2,
                             fontWeight: FontWeight.w800,
                           ),
                         ),

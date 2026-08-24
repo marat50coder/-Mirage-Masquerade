@@ -16,6 +16,10 @@
 	<string>We use the camera so you can take a portrait for your player profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select a picture from your library to use as your player portrait.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Saves your chosen portrait so it appears next to your masks.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is only accessed while the camera is open for your player portrait.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
