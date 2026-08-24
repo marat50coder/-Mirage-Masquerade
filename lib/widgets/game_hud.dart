@@ -181,99 +181,37 @@ class _LockDots extends StatelessWidget {
   }
 }
 
-class _TimerChip extends StatefulWidget {
+class _TimerChip extends StatelessWidget {
   const _TimerChip({required this.seconds, required this.urgent});
   final int seconds;
   final bool urgent;
 
   @override
-  State<_TimerChip> createState() => _TimerChipState();
-}
-
-class _TimerChipState extends State<_TimerChip> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 480),
-  );
-
-  bool get _critical => widget.seconds <= 5 && widget.seconds > 0;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_critical) _pulse.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(covariant _TimerChip old) {
-    super.didUpdateWidget(old);
-    if (_critical && !_pulse.isAnimating) {
-      _pulse.repeat(reverse: true);
-    } else if (!_critical && _pulse.isAnimating) {
-      _pulse
-        ..stop()
-        ..value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final m = (widget.seconds ~/ 60).toString();
-    final s = (widget.seconds % 60).toString().padLeft(2, '0');
-
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, _) {
-        final pv = _pulse.value;
-        final scale = _critical ? 1.0 + pv * 0.09 : 1.0;
-        final glowAlpha = _critical ? 0.35 + pv * 0.45 : 0.5;
-        final glowBlur = _critical ? 10.0 + pv * 14 : 12.0;
-
-        return Transform.scale(
-          scale: scale,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: MM.night.withValues(alpha: 0.75),
-              border: Border.all(
-                color: widget.urgent ? MM.danger : MM.gold.withValues(alpha: 0.7),
-                width: 1.5,
-              ),
-              boxShadow: widget.urgent
-                  ? [
-                      BoxShadow(
-                        color: MM.danger.withValues(alpha: glowAlpha),
-                        blurRadius: glowBlur,
-                        spreadRadius: _critical ? pv * 1.5 : 0,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.urgent ? Icons.hourglass_bottom_rounded : Icons.hourglass_top_rounded,
-                  size: 15,
-                  color: widget.urgent ? MM.danger : MM.gold,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '$m:$s',
-                  style: MM.title(15, color: widget.urgent ? MM.danger : MM.gold),
-                ),
-              ],
-            ),
+    final m = (seconds ~/ 60).toString();
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: MM.night.withValues(alpha: 0.75),
+        border: Border.all(color: urgent ? MM.danger : MM.gold.withValues(alpha: 0.7), width: 1.5),
+        boxShadow: urgent
+            ? [BoxShadow(color: MM.danger.withValues(alpha: 0.5), blurRadius: 12)]
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            urgent ? Icons.hourglass_bottom_rounded : Icons.hourglass_top_rounded,
+            size: 15,
+            color: urgent ? MM.danger : MM.gold,
           ),
-        );
-      },
+          const SizedBox(width: 5),
+          Text('$m:$s', style: MM.title(15, color: urgent ? MM.danger : MM.gold)),
+        ],
+      ),
     );
   }
 }
