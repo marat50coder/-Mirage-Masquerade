@@ -58,6 +58,8 @@ class Progress extends ChangeNotifier {
   bool notificationsAllowed = false;
   bool tutorialSeen = false;
 
+  String? avatarPath;
+
   final Map<Booster, int> boosters = {
     Booster.reveal: 1,
     Booster.slow: 1,
@@ -111,6 +113,7 @@ class Progress extends ChangeNotifier {
     notificationsPromptSeen = j['notifSeen'] as bool? ?? false;
     notificationsAllowed = j['notifAllowed'] as bool? ?? false;
     tutorialSeen = j['tutorialSeen'] as bool? ?? false;
+    avatarPath = j['avatarPath'] as String?;
     final b = j['boosters'] as Map?;
     if (b != null) {
       for (final k in Booster.values) {
@@ -146,6 +149,7 @@ class Progress extends ChangeNotifier {
     'notifSeen': notificationsPromptSeen,
     'notifAllowed': notificationsAllowed,
     'tutorialSeen': tutorialSeen,
+    'avatarPath': avatarPath,
     'boosters': {for (final k in Booster.values) k.name: boosters[k] ?? 0},
     'dailyDate': _dailyDate,
     'dailyProgress': dailyProgress,
@@ -205,6 +209,11 @@ class Progress extends ChangeNotifier {
 
   void markTutorialSeen() {
     tutorialSeen = true;
+    _commit();
+  }
+
+  void setAvatarPath(String? path) {
+    avatarPath = path;
     _commit();
   }
 
@@ -314,6 +323,7 @@ class Progress extends ChangeNotifier {
     bestOverallScore = 0;
     secondsPlayed = 0;
     tutorialSeen = false;
+    avatarPath = null;
     boosters
       ..[Booster.reveal] = 1
       ..[Booster.slow] = 1

@@ -10,6 +10,12 @@
 	</array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Your data is used to personalize the experience and the offers you see.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We use the camera so you can take a portrait for your player profile.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select a picture from your library to use as your player portrait.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInWebContent</key>

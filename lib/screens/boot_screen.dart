@@ -268,12 +268,13 @@ class _ProgressBar extends StatelessWidget {
                       fontSize: height * 0.52,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.6,
-                      color: value > 0.52 ? const Color(0xFF3A1D05) : MM.goldBright,
-                      shadows: [
-                        Shadow(
-                          color: value > 0.52 ? Colors.white24 : Colors.black87,
-                          blurRadius: 3,
-                        ),
+                      color: const Color(0xFFFFD447),
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(-1, 0)),
+                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 0)),
+                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(0, -1)),
+                        Shadow(color: Colors.black, blurRadius: 2, offset: Offset(0, 1)),
+                        Shadow(color: Colors.black87, blurRadius: 4),
                       ],
                     ),
                   ),

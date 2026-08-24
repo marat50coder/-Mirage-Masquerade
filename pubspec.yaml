@@ -1,7 +1,7 @@
 name: mirage_masquerade
 description: "Mirage Masquerade - synchronise three parallel theatres of illusion."
 publish_to: 'none'
-version: 1.0.1+6
+version: 1.0.2+6
 
 environment:
   sdk: ^3.12.2
@@ -15,6 +15,12 @@ dependencies:
   webview_flutter: ^4.14.1
   webview_flutter_wkwebview: ^3.26.0
   url_launcher: ^6.3.2
+  image_picker: ^1.1.2
+  path_provider: ^2.1.5
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
+  appsflyer_sdk: ^6.16.2
 
 dev_dependencies:
   flutter_test:

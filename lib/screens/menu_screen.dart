@@ -7,6 +7,7 @@ import '../core/audio.dart';
 import '../core/palette.dart';
 import '../core/progress.dart';
 import '../game/level.dart';
+import '../widgets/avatar.dart';
 import '../widgets/ornate.dart';
 import 'daily_screen.dart';
 import 'gallery_screen.dart';
@@ -95,6 +96,8 @@ class _MenuScreenState extends State<MenuScreen> with SingleTickerProviderStateM
                     padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
                     child: Row(
                       children: [
+                        const PlayerAvatar(size: 38),
+                        const SizedBox(width: 8),
                         _StatPill(
                           asset: A.star,
                           value: '${p.totalStars}/${Levels.count * 3}',
