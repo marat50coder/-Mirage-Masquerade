@@ -39,12 +39,8 @@ end
 target 'MasqueMediaService' do
   use_frameworks!
   platform :ios, '15.0'
-  # Intentionally no Firebase/Messaging pod here: the main app pulls Firebase
-  # through Swift Package Manager (via firebase_core/messaging in pubspec),
-  # and adding it again through CocoaPods causes a duplicate 'Firebase'
-  # module definition and a full Swift dependency-scan collapse. The NSE
-  # Swift is guarded with `#if canImport(FirebaseMessaging)` so it just
-  # does a plain content passthrough without the Firebase pod.
+  # Must match the Firebase SDK version firebase_core resolves to.
+  pod 'Firebase/Messaging', '12.17.0'
 end
 
 post_install do |installer|
