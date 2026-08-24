@@ -39,6 +39,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool _resultShown = false;
   int _shiftDirection = 1;
   int _startSeconds = 0;
+  int _failStreak = 0;
 
   @override
   void initState() {
@@ -168,6 +169,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final previousBest = p.bestScore[cfg.index] ?? 0;
     final spent = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - _startSeconds;
 
+    if (won) {
+      _failStreak = 0;
+    } else {
+      _failStreak++;
+    }
+
     p.recordRun(
       levelIndex: cfg.index,
       won: won,
@@ -197,12 +204,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       maxCombo: engine.maxCombo,
       secondsLeft: engine.remaining.floor(),
       hasNext: cfg.index + 1 < Levels.count,
+      failStreak: _failStreak,
     );
     if (!mounted) return;
     switch (action) {
       case ResultAction.retry:
         _restart();
       case ResultAction.next:
+        _failStreak = 0;
         setState(() {
           cfg = Levels.at(cfg.index + 1);
         });

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../core/assets.dart';
@@ -87,6 +89,7 @@ Future<ResultAction?> showResultDialog(
   required int maxCombo,
   required int secondsLeft,
   required bool hasNext,
+  int failStreak = 0,
 }) {
   return showGeneralDialog<ResultAction>(
     context: context,
@@ -141,6 +144,37 @@ Future<ResultAction?> showResultDialog(
                     value: '+${20 + stars * 15} masks',
                     highlight: true,
                   ),
+                if (!won && failStreak >= 3) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: MM.velvet.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: MM.amethyst.withValues(alpha: 0.55)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 1),
+                          child: Icon(
+                            Icons.lightbulb_outline_rounded,
+                            color: MM.goldBright,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Tip: Lock the two slower realities first, then catch the fast one at its peak.',
+                            style: MM.body(12, color: MM.parchment),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (won && hasNext)
                   GoldButton(
@@ -248,11 +282,25 @@ class _AnimatedStarsState extends State<_AnimatedStars> with SingleTickerProvide
                     final start = 0.2 + i * 0.26;
                     final t = ((_c.value - start) / 0.26).clamp(0.0, 1.0);
                     final earned = i < widget.stars;
-                    return Transform.scale(
-                      scale: earned ? 0.6 + Curves.easeOutBack.transform(t) * 0.4 : 1,
-                      child: Opacity(
-                        opacity: earned ? (0.2 + t * 0.8) : 0.2,
-                        child: Image.asset(A.star, height: 46),
+                    return SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (earned)
+                            CustomPaint(
+                              size: const Size(56, 56),
+                              painter: _BurstPainter(t: t),
+                            ),
+                          Transform.scale(
+                            scale: earned ? 0.6 + Curves.easeOutBack.transform(t) * 0.4 : 1,
+                            child: Opacity(
+                              opacity: earned ? (0.2 + t * 0.8) : 0.2,
+                              child: Image.asset(A.star, height: 46),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -263,6 +311,51 @@ class _AnimatedStarsState extends State<_AnimatedStars> with SingleTickerProvide
       },
     );
   }
+}
+
+class _BurstPainter extends CustomPainter {
+  const _BurstPainter({required this.t});
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0 || t > 0.85) return;
+    final progress = (t / 0.85).clamp(0.0, 1.0);
+    final fade = 1 - progress;
+    final center = size.center(Offset.zero);
+    const count = 8;
+
+    final linePaint = Paint()
+      ..color = MM.goldBright.withValues(alpha: 0.9 * fade)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final dotPaint = Paint()
+      ..color = MM.gold.withValues(alpha: 0.7 * fade)
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < count; i++) {
+      final angle = (2 * pi * i / count) - pi / 2;
+      final innerR = 14.0 + progress * 4;
+      final outerR = innerR + 6 + progress * 16;
+      canvas.drawLine(
+        center + Offset(cos(angle) * innerR, sin(angle) * innerR),
+        center + Offset(cos(angle) * outerR, sin(angle) * outerR),
+        linePaint,
+      );
+      final dotAngle = angle + pi / count;
+      final dotR = 10.0 + progress * 18;
+      canvas.drawCircle(
+        center + Offset(cos(dotAngle) * dotR, sin(dotAngle) * dotR),
+        2.0 * (1 - progress * 0.5),
+        dotPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BurstPainter old) => old.t != t;
 }
 
 class _ScoreRow extends StatelessWidget {
