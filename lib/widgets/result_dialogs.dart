@@ -12,7 +12,21 @@ enum PauseAction { resume, restart, quit }
 
 enum ResultAction { retry, next, menu }
 
+const _intermissionQuotes = <String>[
+  '"The mask knows more than the face beneath it."',
+  '"Between one reality and the next, the audience holds its breath."',
+  '"Every illusion is a truth seen from the wrong angle."',
+  '"The stage does not forgive a drifting mind."',
+  '"Three mirrors — none of them honest."',
+  '"In the masquerade, hesitation is the only costume that never fits."',
+  '"The greatest trick is letting them believe they understand."',
+  '"A perfect sync lasts less than a heartbeat — and echoes forever."',
+  '"The curtain falls only when you allow it to."',
+  '"Wear the right mask and even chaos looks choreographed."',
+];
+
 Future<PauseAction?> showPauseDialog(BuildContext context, LevelConfig cfg) {
+  final quote = _intermissionQuotes[Random().nextInt(_intermissionQuotes.length)];
   return showGeneralDialog<PauseAction>(
     context: context,
     barrierDismissible: false,
@@ -34,6 +48,21 @@ Future<PauseAction?> showPauseDialog(BuildContext context, LevelConfig cfg) {
                 'Act ${cfg.number} · ${cfg.title}',
                 textAlign: TextAlign.center,
                 style: MM.body(13),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: MM.velvet.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: MM.gold.withValues(alpha: 0.28)),
+                ),
+                child: Text(
+                  quote,
+                  textAlign: TextAlign.center,
+                  style: MM.body(11, color: MM.parchment.withValues(alpha: 0.82))
+                      .copyWith(fontStyle: FontStyle.italic),
+                ),
               ),
               const SizedBox(height: 18),
               GoldButton(
