@@ -10,8 +10,6 @@
 	</array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Your data is used to personalize the experience and the offers you see.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
