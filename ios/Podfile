@@ -40,7 +40,7 @@ target 'MasqueMediaService' do
   use_frameworks!
   platform :ios, '15.0'
   # Must match the Firebase SDK version firebase_core resolves to.
-  pod 'Firebase/Messaging', '12.17.0'
+  pod 'Firebase/Messaging', '12.18.0'
 end
 
 post_install do |installer|
