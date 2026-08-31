@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mirage_masquerade/game/engine.dart';
-import 'package:mirage_masquerade/game/level.dart';
+import 'package:mirage_masquerade/act/engine.dart';
+import 'package:mirage_masquerade/act/level.dart';
 
 void main() {
   test('every level generates realities that can actually be aligned', () {

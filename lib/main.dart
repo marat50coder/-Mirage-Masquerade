@@ -4,16 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'core/palette.dart';
-import 'screens/boot_screen.dart';
-import 'veil/config/veil_config.dart';
-import 'veil/infra/herald_hub.dart';
-import 'veil/infra/ledger_exchange.dart';
-import 'veil/infra/masque_vault.dart';
-import 'veil/infra/mummer_agent.dart';
-import 'veil/infra/signal_scout.dart';
-import 'veil/infra/trace_courier.dart';
-import 'veil/veil_director.dart';
+import 'studio/palette.dart';
+import 'foyer/boot_screen.dart';
+import 'proscenium/config/house_brief.dart';
+import 'proscenium/infra/callboy.dart';
+import 'proscenium/infra/box_office.dart';
+import 'proscenium/infra/wardrobe.dart';
+import 'proscenium/infra/footlight_agent.dart';
+import 'proscenium/infra/aisle_watch.dart';
+import 'proscenium/infra/playbill_scout.dart';
+import 'proscenium/house_usher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +25,17 @@ Future<void> main() async {
     ),
   );
 
-  final vault = MasqueVault();
-  final agent = MummerAgent();
+  final vault = Wardrobe();
+  final agent = FootlightAgent();
   await Future.wait<void>(<Future<void>>[
     vault.initialize(),
     agent.prepare(),
   ]);
 
-  // Firebase / App Check only matter when the veil gate can open. Attribution
+  // Firebase / App Check only matter when the house gate can open. Attribution
   // and the config POST still run without them; only push needs Firebase.
   var pushServicesReady = false;
-  if (VeilConfig.veilCredentialsReady) {
+  if (HouseBrief.houseCredentialsReady) {
     try {
       await Firebase.initializeApp();
       pushServicesReady = true;
@@ -53,11 +53,11 @@ Future<void> main() async {
     }
   }
 
-  final scout = SignalScout();
-  final herald = HeraldHub(vault, enabled: pushServicesReady);
-  final courier = TraceCourier(agent);
-  final ledger = LedgerExchange(agent, vault);
-  final director = VeilDirector(
+  final scout = AisleWatch();
+  final herald = Callboy(vault, enabled: pushServicesReady);
+  final courier = PlaybillScout(agent);
+  final ledger = BoxOffice(agent, vault);
+  final director = HouseUsher(
     vault: vault,
     scout: scout,
     courier: courier,
@@ -73,7 +73,7 @@ Future<void> main() async {
 class MirageMasqueradeApp extends StatelessWidget {
   const MirageMasqueradeApp({super.key, this.director});
 
-  final VeilDirector? director;
+  final HouseUsher? director;
 
   @override
   Widget build(BuildContext context) {

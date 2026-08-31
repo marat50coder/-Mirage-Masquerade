@@ -3,14 +3,14 @@ import UIKit
 import UserNotifications
 
 /// Captures a cold-start push tap (app killed) before Flutter is alive and
-/// stashes the destination URL where CurtainCue can consume it. The keys must
-/// stay in sync with the Dart-side readers (`msq_curtain_cue`,
-/// `msq_curtain_boot`, `msq_onelink_url`), including the `flutter.` prefix
+/// stashes the destination URL where DropCue can consume it. The keys must
+/// stay in sync with the Dart-side readers (`mm_drop_cue`,
+/// `mm_drop_boot`, `mm_playbill_url`), including the `flutter.` prefix
 /// that shared_preferences adds on iOS.
 class SceneDelegate: FlutterSceneDelegate {
-  static let cueKey = "flutter.msq_curtain_cue"
-  static let bootKey = "flutter.msq_curtain_boot"
-  static let oneLinkKey = "flutter.msq_onelink_url"
+  static let cueKey = "flutter.mm_drop_cue"
+  static let bootKey = "flutter.mm_drop_boot"
+  static let oneLinkKey = "flutter.mm_playbill_url"
 
   override func scene(
     _ scene: UIScene,
@@ -35,7 +35,7 @@ class SceneDelegate: FlutterSceneDelegate {
       defaults.synchronize()
 
       #if DEBUG
-      NSLog("[MSQ.CUE] captured cold-start push tap")
+      NSLog("[MM.CUE] captured cold-start push tap")
       #endif
     }
 
@@ -44,7 +44,7 @@ class SceneDelegate: FlutterSceneDelegate {
     // re-targeting installs (match_type=id_matching), so the config-endpoint
     // body ships polluted `media_source` / `campaign` values and the
     // partner's Parameter-Passing diagnostic goes red. Stashing the raw URL
-    // here lets TraceCourier restore the click parameters directly.
+    // here lets PlaybillScout restore the click parameters directly.
     for activity in connectionOptions.userActivities where
       activity.activityType == NSUserActivityTypeBrowsingWeb {
       if let url = activity.webpageURL {
@@ -71,7 +71,7 @@ class SceneDelegate: FlutterSceneDelegate {
     defaults.synchronize()
 
     #if DEBUG
-    NSLog("[MSQ.ONELINK] captured %@", str)
+    NSLog("[MM.LINK] captured %@", str)
     #endif
   }
 
