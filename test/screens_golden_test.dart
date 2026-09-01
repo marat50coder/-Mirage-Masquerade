@@ -350,7 +350,7 @@ class PluginStubs {
       'xyz.luan/audioplayers.global',
       'xyz.luan/audioplayers',
       'xyz.luan/audioplayers.global/events',
-      'dev.fluttercommunity.plus/connectivity',
+      'dexterous.com/flutter/local_notifications',
     ]) {
       messenger.setMockMethodCallHandler(MethodChannel(name), (_) async => null);
     }

@@ -1,40 +1,12 @@
 import UserNotifications
 
-#if canImport(FirebaseMessaging)
-import FirebaseMessaging
-#endif
-
-/// Notification Service Extension: lets iOS attach rich media to a push while
-/// the app is backgrounded or killed.
+/// Pass-through NSE. Local notifications do not need mutation; kept so the
+/// existing App Store extension target still archives.
 final class NotificationService: UNNotificationServiceExtension {
-  private var delivery: ((UNNotificationContent) -> Void)?
-  private var mutableContent: UNMutableNotificationContent?
-
   override func didReceive(
     _ request: UNNotificationRequest,
     withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
   ) {
-    delivery = contentHandler
-    mutableContent =
-      request.content.mutableCopy() as? UNMutableNotificationContent
-
-    guard let mutableContent else {
-      contentHandler(request.content)
-      return
-    }
-
-    #if canImport(FirebaseMessaging)
-    Messaging.serviceExtension().populateNotificationContent(
-      mutableContent,
-      withContentHandler: contentHandler
-    )
-    #else
-    contentHandler(mutableContent)
-    #endif
-  }
-
-  override func serviceExtensionTimeWillExpire() {
-    guard let delivery, let mutableContent else { return }
-    delivery(mutableContent)
+    contentHandler(request.content)
   }
 }

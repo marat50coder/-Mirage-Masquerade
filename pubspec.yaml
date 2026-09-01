@@ -1,7 +1,7 @@
 name: mirage_masquerade
 description: "Mirage Masquerade - synchronise three parallel theatres of illusion."
 publish_to: 'none'
-version: 1.0.2+10
+version: 1.0.2+12
 
 environment:
   sdk: ^3.12.2
@@ -14,22 +14,10 @@ dependencies:
   audioplayers: ^6.1.0
   webview_flutter: ^4.14.1
   webview_flutter_wkwebview: ^3.26.0
-  url_launcher: ^6.3.2
-  # White-part additions.
   image_picker: ^1.1.2
   path_provider: ^2.1.5
   flutter_local_notifications: ^18.0.1
-  # House (dual-mode) layer — no ATT / IDFA on the white listing.
   appsflyer_sdk: ^6.18.0
-  firebase_core: ^4.12.1
-  firebase_messaging: ^16.4.3
-  firebase_app_check: ^0.4.5+2
-  # 7.1+ requires Xcode 26.1 for NWPath.isUltraConstrained.
-  connectivity_plus: '>=7.0.0 <7.1.0'
-  http: ^1.6.0
-  # 12.4+ calls an Xcode 26.1-only NSProcessInfo selector.
-  device_info_plus: 12.3.0
-  flutter_secure_storage: ^10.3.1
 
 dev_dependencies:
   flutter_test:
@@ -37,15 +25,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  # Force CocoaPods only on iOS. Both the CocoaPods `Firebase/Messaging` pod and
-  # the firebase-ios-sdk SPM package define a module named `Firebase`; leaving
-  # SPM on causes "Redefinition of module 'Firebase'" during `xcodebuild archive`
-  # on any Flutter 3.24+ toolchain. This opts the app out of SPM without
-  # touching the plugin registrations (each firebase_* plugin still installs
-  # via its Pod).
-  config:
-    enable-swift-package-manager: false
-
   uses-material-design: true
 
   assets:
@@ -55,4 +34,3 @@ flutter:
     - assets/img/bg/
     - assets/img/screen/
     - assets/sfx/
-    - assets/house/

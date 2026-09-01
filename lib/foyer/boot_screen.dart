@@ -9,21 +9,13 @@ import '../studio/audio.dart';
 import '../studio/image_bank.dart';
 import '../studio/palette.dart';
 import '../studio/progress.dart';
-import '../proscenium/core/house_models.dart';
-import '../proscenium/pages/call_slip.dart';
-import '../proscenium/pages/quiet_wing.dart';
-import '../proscenium/pages/lantern_pane.dart';
-import '../proscenium/house_usher.dart';
+import '../studio/reminders.dart';
 import 'menu_screen.dart';
 
-/// First screen of the app AND the veil routing point. Works in both
-/// orientations; the game itself locks to portrait once the curtain rises.
-/// While the loading art plays, [HouseUsher.decide] resolves organic (game)
-/// vs attributed (WebView) vs offline.
+/// First screen of the app. Works in both orientations; the game itself
+/// locks to portrait once the curtain rises.
 class BootScreen extends StatefulWidget {
-  const BootScreen({super.key, this.director});
-
-  final HouseUsher? director;
+  const BootScreen({super.key});
 
   @override
   State<BootScreen> createState() => _BootScreenState();
@@ -88,37 +80,13 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
   Future<void> _run() async {
     final started = DateTime.now();
 
-    // Progress (settings/save data) is needed on both paths and is tiny.
     await Progress.instance.load();
+    if (Progress.instance.notificationsAllowed) {
+      unawaited(Reminders.instance.setEnabled(true));
+    }
     _step = 0;
     _to(0.08);
 
-    // Resolve organic vs attributed FIRST — nothing white-part-specific is
-    // preloaded until we know we're staying in the house.
-    StageTarget target;
-    try {
-      target = await (widget.director?.decide(
-            onProgress: (v) {
-              _step = (v * 3).clamp(0, 3).floor();
-              _to((0.08 + v * 0.60).clamp(0.0, 0.7));
-            },
-          ) ??
-          Future<StageTarget>.value(const HouseTarget()));
-    } catch (_) {
-      target = const HouseTarget();
-    }
-    if (!mounted) return;
-
-    if (target is PaneTarget) {
-      await _openMirror(target, started);
-      return;
-    }
-    if (target is QuietTarget) {
-      await _openHush(started);
-      return;
-    }
-
-    // House (organic / reviewer / gate closed) → warm the game.
     await Audio.instance.init();
     _step = 3;
     _to(0.74);
@@ -158,64 +126,6 @@ class _BootScreenState extends State<BootScreen> with TickerProviderStateMixin {
         transitionDuration: const Duration(milliseconds: 620),
         pageBuilder: (_, _, _) => const MenuScreen(),
         transitionsBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
-      ),
-    );
-  }
-
-  /// Attributed path: optional push invite, then the partner WebView. A short
-  /// splash floor is enough — no need to hold the full game-length minimum.
-  Future<void> _openMirror(PaneTarget target, DateTime started) async {
-    final director = widget.director!;
-    // Drive the bar to a full 100% and let the fill animation actually play
-    // out before navigating, so the user visibly sees the load complete
-    // instead of the bar snapping away mid-progress.
-    _step = 5;
-    setState(() => _launching = true);
-    _to(1.0, duration: const Duration(milliseconds: 560));
-    final elapsed = DateTime.now().difference(started);
-    const floor = Duration(milliseconds: 1200);
-    final remaining = floor - elapsed;
-    const minFill = Duration(milliseconds: 720);
-    await Future<void>.delayed(remaining > minFill ? remaining : minFill);
-    if (!mounted) return;
-
-    Widget mirror(BuildContext _) => LanternPane(
-          url: target.url,
-          coldLaunch: target.coldLaunch,
-          vault: director.vault,
-          scout: director.scout,
-          herald: director.herald,
-          agent: director.agent,
-        );
-
-    final wantsInvite = director.vault.shouldShowPushInvite &&
-        await director.herald.canOfferPermission();
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: wantsInvite
-            ? (_) => CallSlip(
-                  vault: director.vault,
-                  herald: director.herald,
-                  nextBuilder: mirror,
-                )
-            : mirror,
-      ),
-    );
-  }
-
-  Future<void> _openHush(DateTime started) async {
-    final director = widget.director!;
-    final elapsed = DateTime.now().difference(started);
-    const floor = Duration(milliseconds: 700);
-    if (elapsed < floor) await Future<void>.delayed(floor - elapsed);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => QuietWing(
-          scout: director.scout,
-          retryBuilder: (_) => BootScreen(director: director),
-        ),
       ),
     );
   }

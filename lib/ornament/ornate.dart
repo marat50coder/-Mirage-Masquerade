@@ -87,6 +87,13 @@ class _GoldButtonState extends State<GoldButton> {
   Widget build(BuildContext context) {
     final enabled = widget.enabled && widget.onTap != null;
     final accent = widget.color ?? MM.gold;
+    // Dark ink is for gold faces only. Coloured shop / reward tablets go
+    // almost black at the bottom of the gradient, so prices need cream type.
+    final goldFace = widget.color == null || widget.color == MM.gold || widget.color == MM.goldBright;
+    final ink = goldFace ? const Color(0xFF2A1204) : MM.parchment;
+    final inkShadow = goldFace
+        ? Shadow(color: Colors.white.withValues(alpha: 0.5), offset: const Offset(0, 1))
+        : Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 4);
     final radius = BorderRadius.circular(widget.height * 0.42);
     return GestureDetector(
       onTapDown: enabled ? (_) => setState(() => _down = true) : null,
@@ -182,13 +189,8 @@ class _GoldButtonState extends State<GoldButton> {
                               fontSize: widget.fontSize,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.4,
-                              color: const Color(0xFF2A1204),
-                              shadows: [
-                                Shadow(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
+                              color: ink,
+                              shadows: [inkShadow],
                             ),
                           ),
                           if (widget.subtitle != null)
@@ -202,7 +204,7 @@ class _GoldButtonState extends State<GoldButton> {
                                   fontSize: widget.fontSize * 0.60,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.6,
-                                  color: const Color(0xFF4A230C),
+                                  color: goldFace ? const Color(0xFF4A230C) : MM.goldBright,
                                 ),
                               ),
                             ),

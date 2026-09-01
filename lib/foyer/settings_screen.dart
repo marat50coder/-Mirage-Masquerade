@@ -4,6 +4,7 @@ import '../studio/assets.dart';
 import '../studio/audio.dart';
 import '../studio/palette.dart';
 import '../studio/progress.dart';
+import '../studio/reminders.dart';
 import '../ornament/ornate.dart';
 import '../ornament/result_dialogs.dart';
 import 'web_view_screen.dart';
@@ -83,7 +84,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.notifications_active_rounded,
                   label: 'Bonus reminders',
                   value: p.notificationsAllowed,
-                  onChanged: (v) => setState(() => p.markNotificationPrompt(v)),
+                  onChanged: (v) async {
+                    final granted = await Reminders.instance.setEnabled(v);
+                    if (!mounted) return;
+                    setState(() => p.markNotificationPrompt(granted && v));
+                    if (v && !granted && context.mounted) {
+                      showMMToast(
+                        context,
+                        'Permission denied for reminders',
+                        good: false,
+                      );
+                    }
+                  },
                 ),
               ],
             ),
@@ -98,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text('MIRAGE MASQUERADE', style: MM.title(15)),
                 const SizedBox(height: 4),
                 Text(
-                  'Version 1.0.0 (3)',
+                  'Version 1.0.2 (12)',
                   style: MM.body(11, color: MM.parchment.withValues(alpha: 0.7)),
                 ),
                 const SizedBox(height: 8),

@@ -4,12 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>We use the camera so you can take a portrait for your player profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -18,11 +12,6 @@
 	<string>Save a cropped portrait to your photo library if you choose to keep it there.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>The camera may use the microphone while you take a profile portrait.</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoadsInWebContent</key>
-		<true/>
-	</dict>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>
