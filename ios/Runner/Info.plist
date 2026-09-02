@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Allow tracking so we can measure the effectiveness of Mirage Masquerade campaigns and recognise how you found the game.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We use the camera so you can take a portrait for your player profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
