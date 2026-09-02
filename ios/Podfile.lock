@@ -1,12 +1,4 @@
 PODS:
-  - appsflyer_sdk (6.18.1):
-    - appsflyer_sdk/Core (= 6.18.1)
-  - appsflyer_sdk/Core (6.18.1):
-    - AppsFlyerFramework (= 6.18.1)
-    - Flutter
-  - AppsFlyerFramework (6.18.1):
-    - AppsFlyerFramework/Main (= 6.18.1)
-  - AppsFlyerFramework/Main (6.18.1)
   - audioplayers_darwin (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -23,7 +15,6 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
-  - appsflyer_sdk (from `.symlinks/plugins/appsflyer_sdk/ios`)
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
@@ -31,13 +22,7 @@ DEPENDENCIES:
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
-SPEC REPOS:
-  trunk:
-    - AppsFlyerFramework
-
 EXTERNAL SOURCES:
-  appsflyer_sdk:
-    :path: ".symlinks/plugins/appsflyer_sdk/ios"
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/darwin"
   Flutter:
@@ -52,8 +37,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
-  appsflyer_sdk: f0bd7be69dca64aef6d569aa6bd3ef8cd8228236
-  AppsFlyerFramework: 319c8357ea52a559c27a7b474f0b50833e76e3eb
   audioplayers_darwin: 835ced6edd4c9fc8ebb0a7cc9e294a91d99917d5
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: 395056b3175ba4f08480a7c5de30cd36d69827e4

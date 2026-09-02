@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'foyer/boot_screen.dart';
-import 'studio/attribution.dart';
 import 'studio/palette.dart';
 import 'studio/reminders.dart';
 
@@ -17,7 +16,6 @@ Future<void> main() async {
       statusBarBrightness: Brightness.dark,
     ),
   );
-  unawaited(Attribution.instance.start());
   unawaited(Reminders.instance.prepare());
   runApp(const MirageMasqueradeApp());
 }
